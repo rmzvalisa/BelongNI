@@ -1,0 +1,244 @@
+---
+title: "Data Appendix: Imputed Data"
+author: "Remizova Alisa"
+output: pdf_document
+---
+
+This is a description of the individual-level data used in the analysis. The dataset is the data of the joint dataset of the World Values Survey (WVS) round seven and European Values Survey (EVS) round 5 2017-2022 combined with the dataset of the WVS round six 2010-2014. These three datasets underwent preparatory analysis, such as recoding indicators and excluding countries with omitted religiosity indicators (for details, see the document "DataAppendix" and Table 1 in the Appendix) before being combined. The current document presents the descriptive statistics for six religiosity indicators used in the main analysis those missing values were imputed with the *mice* R package. For the share of missing values for each indicator (by country) before imputation, see Table 3 in the Appendix. 
+
+
+There are five separate imputed datasets, so the document is divided into sections corresponding to indicators, and each of them has specific statistics for each dataset. The descriptive statistics are presented by country (N = 84). 
+
+# Importance of religion
+
+Coding: 1 = Not at all important; 2 = Not very important; 3 = Rather important; 4 = Very important
+
+```{r imprel, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
+# Please run all the Processing Script before you run the Data Appendix Script
+## or upload the imputed data from the “02_AnalysisScripts” folder
+
+library(kableExtra)
+load("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/02_AnalysisData/imp_data_full_WVS_EVS.RData")
+
+imprel_tab <- imp_data
+
+for (i in 1:length(imprel_tab)){
+  
+  # frequency table for each of the five imputed datasets
+  imprel_tab[[i]] <- lapply(imprel_tab[[i]], function(x)
+    table(x$imprel))
+  
+  imprel_tab[[i]] <- as.data.frame(do.call("rbind", imprel_tab[[i]]))
+  
+  imprel_tab[[i]] <- cbind(
+    c(names(imprel_tab[i]), "", "", "", ""),
+    c("Data 1", "Data 2", "Data 3", "Data 4", "Data 5"), 
+    imprel_tab[[i]])
+  
+  colnames(imprel_tab[[i]]) <- c("Country", "Dataset", 1:4)
+  
+  imprel_tab[[i]]$N <- rowSums(imprel_tab[[i]][, 3:6])
+
+}
+
+# Combine into one table
+imprel_tab <- do.call("rbind", imprel_tab)
+
+kable(imprel_tab, "latex", booktabs = T, longtable = T, row.names = F,
+      align = "llccccc") %>%
+  kable_styling(latex_options = c("striped", "repeat_header"), full_width = T)
+
+```
+
+# Confidence in institutions
+
+Coding: 1 = None at all; 2 = Not very much; 3 = Quite a lot; 4 = A great deal
+
+```{r confidence, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
+conf_tab <- imp_data
+
+for (i in 1:length(conf_tab)){
+  
+  # frequency table for each of the five imputed datasets
+  conf_tab[[i]] <- lapply(conf_tab[[i]], function(x)
+    table(x$confidence))
+  
+  conf_tab[[i]] <- as.data.frame(do.call("rbind", conf_tab[[i]]))
+  
+  conf_tab[[i]] <- cbind(
+    c(names(conf_tab[i]), "", "", "", ""),
+    c("Data 1", "Data 2", "Data 3", "Data 4", "Data 5"), 
+    conf_tab[[i]])
+  
+  colnames(conf_tab[[i]]) <- c("Country", "Dataset", 1:4)
+  
+  conf_tab[[i]]$N <- rowSums(conf_tab[[i]][, 3:6])
+
+}
+
+conf_tab <- do.call("rbind", conf_tab)
+
+kable(imprel_tab, "latex", booktabs = T, longtable = T, row.names = F,
+      align = "llccccc") %>%
+  kable_styling(latex_options = c("striped", "repeat_header"), full_width = T)
+
+```
+
+# Belonging to a denomination
+
+Coding: 1 = No, do not belong to a denomination; 2 = Yes, belong to a denomination
+
+```{r belong, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
+belong_tab <- imp_data
+
+for (i in 1:length(belong_tab)){
+  
+  # frequency table for each of the five imputed datasets
+  belong_tab[[i]] <- lapply(belong_tab[[i]], function(x)
+    table(x$belong))
+  
+  belong_tab[[i]] <- as.data.frame(do.call("rbind", belong_tab[[i]]))
+  
+  belong_tab[[i]] <- cbind(
+    c(names(belong_tab[i]), "", "", "", ""),
+    c("Data 1", "Data 2", "Data 3", "Data 4", "Data 5"), 
+    belong_tab[[i]])
+  
+  colnames(belong_tab[[i]]) <- c("Country", "Dataset", 1:2)
+  
+  belong_tab[[i]]$N <- rowSums(belong_tab[[i]][, 3:4])
+  
+}
+
+
+belong_tab <- do.call("rbind", belong_tab)
+
+kable(belong_tab, "latex", booktabs = T, longtable = T, row.names = F,
+      align = "llccc") %>%
+  kable_styling(latex_options = c("striped", "repeat_header"), full_width = T)
+
+```
+
+
+# Frequency of religious attendance
+
+Coding: 1 = Never, practically; 2 = Less often; 3 = Once a year; 4 = Only on special holy days; 5 = Once a month; 6 = Once a week; 7 = More than once a week
+
+```{r attend, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
+attend_tab <- imp_data
+
+for (i in 1:length(attend_tab)){
+  
+  # descriptive statistics for each of the five imputed datasets
+  for (a in 1:length(attend_tab[[i]])){
+    attend_tab[[i]][[a]]$Mean = round(mean(attend_tab[[i]][[a]]$attend, na.rm = T), 2)
+    attend_tab[[i]][[a]]$SD = round(sd(attend_tab[[i]][[a]]$attend, na.rm = T), 2)
+    attend_tab[[i]][[a]]$Range = paste(min(attend_tab[[i]][[a]]$attend, na.rm = T), max(attend_tab[[i]][[a]]$attend, na.rm = T), sep = "-")
+    attend_tab[[i]][[a]]$N = length(attend_tab[[i]][[a]]$attend)
+    
+    attend_tab[[i]][[a]] <- attend_tab[[i]][[a]][1, c("Mean", "SD", "Range", "N")]
+    
+  }
+  
+  # Combine for countries into one table
+  attend_tab[[i]] <- as.data.frame(do.call("rbind", attend_tab[[i]]))
+  
+  attend_tab[[i]] <- cbind(
+    c(names(attend_tab[i]), "", "", "", ""),
+    c("Data 1", "Data 2", "Data 3", "Data 4", "Data 5"), 
+    attend_tab[[i]])
+ 
+  colnames(attend_tab[[i]]) <- 
+    c("Country", "Dataset", "Mean", "SD", "Range", "N")
+}
+
+# Combine into one table
+attend_tab <- do.call("rbind", attend_tab)
+
+kable(attend_tab, "latex", booktabs = T, longtable = T, row.names = F,
+      align = "llcccc") %>%
+  kable_styling(latex_options = c("striped", "repeat_header"), full_width = T) %>%
+  footnote(
+    general = "Dataset = number of the imputed dataset; SD = Standard deviation; N = Number of observations"
+  )
+
+```
+
+# Frequency of praying
+
+Coding: 1 = Never, practically never; 2 =  Once a year or less often; 3 = Several times a year, only on special holidays; 4 = Once or several times a month; 5 = Once or several times a day.
+
+```{r pray, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
+pray_tab <- imp_data
+
+for (i in 1:length(pray_tab)){
+  
+  for (a in 1:length(pray_tab[[i]])){
+    pray_tab[[i]][[a]]$Mean = round(mean(pray_tab[[i]][[a]]$pray, na.rm = T), 2)
+    pray_tab[[i]][[a]]$SD = round(sd(pray_tab[[i]][[a]]$pray, na.rm = T), 2)
+    pray_tab[[i]][[a]]$Range = paste(min(pray_tab[[i]][[a]]$pray, na.rm = T), max(pray_tab[[i]][[a]]$pray, na.rm = T), sep = "-")
+    pray_tab[[i]][[a]]$N = length(pray_tab[[i]][[a]]$pray)
+    
+    pray_tab[[i]][[a]] <- pray_tab[[i]][[a]][1, c("Mean", "SD", "Range", "N")]
+    
+  }
+  
+  pray_tab[[i]] <- as.data.frame(do.call("rbind", pray_tab[[i]]))
+  
+  pray_tab[[i]] <- cbind(
+    c(names(pray_tab[i]), "", "", "", ""),
+    c("Data 1", "Data 2", "Data 3", "Data 4", "Data 5"), 
+    pray_tab[[i]])
+ 
+  colnames(pray_tab[[i]]) <- 
+    c("Country", "Dataset", "Mean", "SD", "Range", "N")
+}
+
+pray_tab <- do.call("rbind", pray_tab)
+
+kable(pray_tab, "latex", booktabs = T, longtable = T, row.names = F,
+      align = "llcccc") %>%
+  kable_styling(latex_options = c("striped", "repeat_header"), full_width = T) %>%
+  footnote(
+    general = "Dataset = number of the imputed dataset; SD = Standard deviation; N = Number of observations"
+  )
+
+```
+
+# Identification as a religious person
+
+Coding: 1 = Not religious person; 2 = A religious person
+
+```{r person, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
+person_tab <- imp_data
+
+for (i in 1:length(person_tab)){
+  
+  # frequency table for each of the five imputed datasets
+  person_tab[[i]] <- lapply(person_tab[[i]], function(x)
+    table(x$person))
+  
+  person_tab[[i]] <- as.data.frame(do.call("rbind", person_tab[[i]]))
+  
+  person_tab[[i]] <- cbind(
+    c(names(person_tab[i]), "", "", "", ""),
+    c("Data 1", "Data 2", "Data 3", "Data 4", "Data 5"), 
+    person_tab[[i]])
+  
+  colnames(person_tab[[i]]) <- c("Country", "Dataset", 1:2)
+  
+  person_tab[[i]]$N <- rowSums(person_tab[[i]][, 3:4])
+
+}
+
+person_tab <- do.call("rbind", person_tab)
+
+kable(person_tab, "latex", booktabs = T, longtable = T, row.names = F,
+      align = "llccc") %>%
+  kable_styling(latex_options = c("striped", "repeat_header"), full_width = T) %>%
+  footnote(
+    general = "Dataset = number of the imputed dataset; N = Number of observations"
+  )
+
+```
+
