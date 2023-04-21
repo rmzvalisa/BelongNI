@@ -43,16 +43,12 @@ source("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01
 codes <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
                     sheet = "Country codes")
 
-# Read data 
+# Read data, set the same country names in WVS7 as in WVS6, and merge with country codes
 WVS7_EVS5 <- read.spss("/Users/alisa/Desktop/Research/Data/EVS_WVS_Joint_Spss_v4_0.sav", 
-                       use.value.labels = T, to.data.frame = T, use.missings = T)
-
-# Set the same country names in WVS7 as in WVS6:
-levels(WVS7_EVS5$cntry)[levels(WVS7_EVS5$cntry)=="Taiwan ROC"] <- "Taiwan"
-levels(WVS7_EVS5$cntry)[levels(WVS7_EVS5$cntry)=="Hong Kong SAR"] <- "Hong Kong"
-
-# Merge with country codes
-WVS7_EVS5 <- merge(WVS7_EVS5, codes, by.x = c("cntry"), by.y = c("country"),  all.x = T)
+                       use.value.labels = T, to.data.frame = T, use.missings = T) %>%
+  mutate(cntry = ifelse(cntry == "Taiwan ROC", "Taiwan", cntry), 
+         cntry = ifelse(cntry == "Hong Kong SAR", "Hong Kong", cntry)) %>%
+  left_join(codes, by = c("cntry" = "country"))
 
 # Select only necessary variables
 rel_data <- select(WVS7_EVS5, c(cntry, reg_iso, study, year, 
