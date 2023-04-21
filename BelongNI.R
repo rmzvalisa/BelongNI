@@ -1,17 +1,9 @@
 
 # DATA PREPARATION
 
-library(car)
-library(foreign)
-library(haven)
-library(dplyr)
-library(mice)
-library(LittleHelpers)
-library(MplusAutomation)
-library(readxl)
-library(gdata)
-library(kableExtra) 
-library(sna)
+lapply(c("car", "foreign", "haven", "dplyr", "mice", "LittleHelpers", "MplusAutomation",
+         "readxl", "gdata", "kableExtra", "sna"),
+       require, character.only = TRUE)   
 
 # Upload two functions written for the current analysis
 source("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/AddFunctionsBelong.R")
@@ -48,7 +40,7 @@ source("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01
 ## year - survey year
 
 # Read country codes
-codes <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/CountryInfoWVS_EVS.xlsx", 
+codes <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
                     sheet = "Country codes")
 
 # Read data 
@@ -156,7 +148,7 @@ WVS6 <- read.spss("/Users/alisa/Desktop/Research/Data/WV6_Data_Spss_v20180912.sa
                   use.value.labels = T, to.data.frame = T, use.missings = T)
 
 # Read the survey year
-WVS6_year <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/CountryInfoWVS_EVS.xlsx", 
+WVS6_year <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
                         sheet = "Survey year")
 
 # Merge with country codes and survey year
@@ -868,7 +860,6 @@ imprel ~~ confidence;
 cfa_model <- groupwiseCFA.mi.sep(model, data = imp_data, ordered = ord_items, 
                                  estimator = "WLSMV", out = c("goodfit"))
 
-
 # 50 countries
 ## Asian: India, Japan, Malaysia, Singapore, Taiwan, Vietnam
 ## Muslim: Cyprus, Iran, Kazakhstan, Kyrgyzstan, 
@@ -1295,6 +1286,13 @@ mlsem_dat <- lapply(mlsem_dat, function(y)
 for (i in 1:length(mlsem_dat)) {
   mlsem_dat[[i]]$country <- droplevels(mlsem_dat[[i]]$country)  
 }
+
+# Save data for MLSEM
+setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus")
+for (i in 1:length(mlsem_dat)) {
+  prepareMplusData(mlsem_dat[[i]], filename = paste0("mlsem_dat", i, ".dat"))
+}
+
 
 # ===================================================================================================
 
