@@ -2,8 +2,8 @@
 # DATA PREPARATION
 
 lapply(c("car", "foreign", "haven", "dplyr", "mice", "LittleHelpers", "MplusAutomation",
-         "readxl", "gdata", "kableExtra", "sna"),
-       require, character.only = TRUE)   
+         "readxl", "gdata", "kableExtra", "sna", "forcats", "purrr"),
+       require, character.only = TRUE)  
 
 # Upload two functions written for the current analysis
 source("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/AddFunctionsBelong.R")
@@ -46,16 +46,13 @@ codes <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belongin
 # Read data, set the same country names in WVS7 as in WVS6, and merge with country codes
 WVS7_EVS5 <- read.spss("/Users/alisa/Desktop/Research/Data/EVS_WVS_Joint_Spss_v4_0.sav", 
                        use.value.labels = T, to.data.frame = T, use.missings = T) %>%
-  mutate(cntry = ifelse(cntry == "Taiwan ROC", "Taiwan", cntry), 
-         cntry = ifelse(cntry == "Hong Kong SAR", "Hong Kong", cntry)) %>%
-  left_join(codes, by = c("cntry" = "country"))
+  # Set the same country names in WVS7 as in WVS6
+  mutate(cntry = fct_recode(cntry, "Taiwan" = "Taiwan ROC")) %>%
+  mutate(cntry = fct_recode(cntry, "Hong Kong" = "Hong Kong SAR")) %>%
+  # Merge with country codes
+  merge(codes, by.x = c("cntry"), by.y = c("country"),  all.x = T)
 
-# Select only necessary variables
-rel_data <- select(WVS7_EVS5, c(cntry, reg_iso, study, year, 
-                           A006, A065, E069_01, F025, F028, 
-                           F028B_WVS7, F066_EVS5, F034, F050, F053, F063,
-                           X001, X003R, X047_WVS7, X047E_EVS5, X025A_01, code))
-
+# Select only necessary variables and recode
 # Set the following column names:
 ## Importance of religion = imprel
 ## Membership in a religious organisation = member
@@ -73,48 +70,45 @@ rel_data <- select(WVS7_EVS5, c(cntry, reg_iso, study, year,
 ## Age = age
 ## Education = education
 ## Region = region
-colnames(rel_data) <- c("country", "region", "survey", "year", 
-                        "imprel", "member", "confidence", "belong", "attend",
-                        "pray_WVS", "pray_EVS", "person", "bgod", "bhell", "impgod", 
-                        "gender", "age", "income_WVS", "income_EVS", "education", "code")
+rel_data <- WVS7_EVS5 %>%
+  select(cntry, reg_iso, study, year, A006, A065, E069_01, F025, F028, F028B_WVS7, F066_EVS5, F034, 
+         F050, F053, F063, X001, X003R, X047_WVS7, X047E_EVS5, X025A_01, code) %>%
+  rename(country = cntry, region = reg_iso, survey = study, imprel = A006, member = A065, 
+         confidence = E069_01, belong = F025, attend = F028, pray_WVS = F028B_WVS7,
+         pray_EVS = F066_EVS5, person = F034, bgod = F050, bhell = F053, impgod = F063, 
+         gender = X001, age = X003R, income_WVS = X047_WVS7, income_EVS = X047E_EVS5, education = X025A_01)
 
-# For 10 countries that participated in both EVS and WVS, select WVS observations
 rel_data <- subset(rel_data, 
-              subset = !((rel_data$country %in% 
-                           c("Armenia", "Czechia", "Germany", "Great Britain", "Netherlands", 
-                             "Romania", "Russia", "Serbia", "Slovakia", "Ukraine")) & 
-                           rel_data$survey == "EVS"))
+                   subset = !((rel_data$country %in% 
+                                 c("Armenia", "Czechia", "Germany", "Great Britain", "Netherlands", 
+                                   "Romania", "Russia", "Serbia", "Slovakia", "Ukraine")) & 
+                                rel_data$survey == "EVS"))
 
 # Make two separate samples for Germany: East and West
-Germany <- rel_data[rel_data$country == "Germany", ]
-Germany$region <- droplevels(Germany$region)
-Germany$country <- droplevels(Germany$country)
+## Recode and drop Berlin
+Germany <- rel_data %>%
+  filter(country == "Germany") %>%
+  mutate(country = case_when(
+    region %in% c("DE-MV Mecklenburg-Western Pomerania", "DE-BB Brandenburg",
+                  "DE-SN Saxony", "DE-ST Saxony-Anhalt", "DE-TH Thuringia") ~ "Germany East",
+    region == "DE-BE Berlin" ~ NA_character_,
+    TRUE ~ "Germany West"
+  )) %>%
+  mutate(country = as.factor(country)) %>%
+  filter(!is.na(country))
 
-# Recode and drop Berlin
-Germany$country <- Recode(
-  Germany$region,
-  recodes = "'DE-MV Mecklenburg-Western Pomerania' = 'Germany East';
-  'DE-BB Brandenburg' = 'Germany East';
-  'DE-SN Saxony' = 'Germany East';
-  'DE-ST Saxony-Anhalt' = 'Germany East';
-  'DE-TH Thuringia' = 'Germany East';
-  'DE-BE Berlin' = NA;
-  else = 'Germany West'",
-  as.factor = T)
+rel_data <- rel_data  %>%
+  rbind(Germany) %>%
+  subset(country != "Germany") %>% 
+  select(-region)
 
-Germany <- Germany[!is.na(Germany$country), ]
-
-rel_data <- rbind(rel_data, Germany)
-rel_data <- subset(
-  rel_data, subset = !(rel_data$country == "Germany"))
-rel_data$region <- NULL
 rm(Germany)
 
 levels(rel_data$country)
 # 91 countries - do not count "Germany" - this factor level will be dropped later
 
 # -----------------------
-  
+
 # WVS 6
 
 # Religiosity indicators:
@@ -140,24 +134,22 @@ levels(rel_data$country)
 # V248 - What is the highest educational level that you have attained?
 ## from No formal education to University - level education, with degree 
 
-WVS6 <- read.spss("/Users/alisa/Desktop/Research/Data/WV6_Data_Spss_v20180912.sav",
-                  use.value.labels = T, to.data.frame = T, use.missings = T)
-
 # Read the survey year
 WVS6_year <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
                         sheet = "Survey year")
 
-# Merge with country codes and survey year
-WVS6 <- merge(WVS6, WVS6_year, by.x = c("V2"), by.y = c("country"), all.x = T)
-WVS6 <- merge(WVS6, codes, by.x = c("V2"), by.y = c("country"),  all.x = T)
+# Read the data and merge with country codes and survey year
+WVS6 <- read.spss("/Users/alisa/Desktop/Research/Data/WV6_Data_Spss_v20180912.sav",
+                  use.value.labels = T, to.data.frame = T, use.missings = T) %>%
+  merge(WVS6_year, by.x = c("V2"), by.y = c("country"), all.x = T) %>%
+  merge(codes, by.x = c("V2"), by.y = c("country"), all.x = T)
 
-# Select only necessary variables
-rel_data_WVS6 <- select(WVS6, c(V2, V9, V25, V108, V144:V149, V152, 
-                                V240, V242, V239, V248, year, code))
-
-colnames(rel_data_WVS6) <- c("country", "imprel", "member", "confidence", "belong", "attend",
-                             "pray", "person", "bgod", "bhell", "impgod", 
-                             "gender", "age", "income", "education", "year", "code")
+# Select only necessary variables and rename them
+rel_data_WVS6 <- WVS6 %>%
+  select(c(V2, V9, V25, V108, V144:V149, V152, V240, V242, V239, V248, year, code)) %>%
+  rename(country = V2, imprel = V9, member = V25, confidence = V108, belong = V144, 
+         attend = V145, pray = V146, person = V147, bgod = V148, bhell = V149, impgod = V152, 
+         gender = V240, age = V242, income = V239, education = V248)
 
 # Subset countries that did not participate in WVS 7 and EVS 5
 rel_data_WVS6 <- subset(rel_data_WVS6, subset = 
@@ -176,32 +168,26 @@ rel_data_WVS6$survey <- "WVS 6"
 
 # INCOME. Combining two surveys
 ## 1. Recode from factor into numeric the two income variables
-for (item in c("income_WVS", "income_EVS")) {
-  rel_data[, item] <- as.numeric(rel_data[, item])
-}
-
 ## 2. Combine two variables into new variable
-rel_data$income <- ifelse(rel_data$survey == "WVS", rel_data$income_WVS, rel_data$income_EVS)
-
 ## 3. Drop survey-specific variables
-rel_data[, c("income_EVS", "income_WVS")] <- NULL
-
+rel_data <- rel_data %>%
+  mutate(across(c(income_WVS, income_EVS), as.numeric)) %>%
+  mutate(income = ifelse(survey == "WVS", income_WVS, income_EVS)) %>%
+  select(-c(income_WVS, income_EVS))
 
 # ATTENDANCE. Recoding
 ## 1. Exclude "Other specific holy days" category from (probably a typo) - 0 observations
 rel_data$attend <- droplevels(rel_data$attend)
 
 ## 2. Recode the "Only on special holy days/Christmas/Easter days" category as in WVS6
-levels(rel_data$attend)[
-  levels(rel_data$attend) == "Only on special holy days/Christmas/Easter days"] <- 
-  "Only on special holy days"
-
+rel_data <- rel_data %>%
+  mutate(attend = fct_recode(attend, "Only on special holy days" = 
+                               "Only on special holy days/Christmas/Easter days"))
 
 # PERSON. Recoding
 ## Recode the "A convinced atheist" category as in WVS6
-levels(rel_data$person)[
-  levels(rel_data$person) == "A convinced atheist"] <- 
-  "An atheist"
+rel_data <- rel_data %>%
+  mutate(person = fct_recode(person, "An atheist" = "A convinced atheist"))
 
 
 # PRAYING. Combining two surveys
@@ -240,46 +226,31 @@ levels(rel_data$person)[
 ### Less often = Once a year or less often
 ### Never = Never, practically never
 
-## Otherwise it is not clear what to do with WVS 7 "Only when attending religious services"
+## 2. Reverse code
+## 3. Combine two variables into new variable 
+## 4. Drop survey-specific variables
 
-rel_data$pray_WVS <- Recode(rel_data$pray_WVS, 
-                            recodes = "'Several times a day' = 'Once or several times a day';
-                            'Once a day' = 'Once or several times a day';
-                            'Several times each week' = 'Once or several times a month';
-                            'Only when attending religious services' = 'Once or several times a month';
-                            'Only on special holy days' = 'Several times a year, only on special holidays';
-                            'Once a year' = 'Once a year or less often';
-                            'Less often' = 'Once a year or less often';
-                            'Never, practically never' = 'Never, practically never';
-                            else = NA",
-                            as.factor = T,
-                            levels = c("Once or several times a day",
-                                       "Once or several times a month",
-                                       "Several times a year, only on special holidays",
-                                       "Once a year or less often",
-                                       "Never, practically never"))
+rel_data <- rel_data %>%
+  mutate(pray_WVS = fct_recode(pray_WVS, 
+                               "Once or several times a day" = "Several times a day",
+                               "Once or several times a day" = "Once a day",
+                               "Once or several times a month" = "Several times each week",
+                               "Once or several times a month" = "Only when attending religious services",
+                               "Several times a year, only on special holidays" = "Only on special holy days",
+                               "Once a year or less often" = "Once a year",
+                               "Once a year or less often" = "Less often")) %>%
+  mutate(pray_EVS = fct_recode(pray_EVS, 
+                               "Once or several times a day" = "Every day",
+                               "Once or several times a month" = "More than once week",
+                               "Once or several times a month" = "Once a week",
+                               "Once or several times a month" = "At least once a month",
+                               "Several times a year, only on special holidays" = "Several times a year",
+                               "Once a year or less often" = "Less often",
+                               "Never, practically never" = "Never"))  %>%
+  mutate(across(c(pray_WVS, pray_EVS), ~ fct_relevel(., rev))) %>%
+  mutate(pray = if_else(survey == "WVS", pray_WVS, pray_EVS)) %>%
+  select(-c(pray_WVS, pray_EVS))
 
-rel_data$pray_EVS <- Recode(rel_data$pray_EVS, 
-                            recodes = "'Every day' = 'Once or several times a day';
-                            'More than once week' = 'Once or several times a month';
-                            'Once a week' = 'Once or several times a month';
-                            'At least once a month' = 'Once or several times a month';
-                            'Several times a year' = 'Several times a year, only on special holidays';
-                            'Less often' = 'Once a year or less often';
-                            'Never' = 'Never, practically never';
-                            else = NA", as.factor = T,
-                            levels = c("Once or several times a day",
-                                       "Once or several times a month",
-                                       "Several times a year, only on special holidays",
-                                       "Once a year or less often",
-                                       "Never, practically never"))
-
-
-## 2. Combine two variables into new variable 
-rel_data$pray <- ifelse(rel_data$survey == "WVS", rel_data$pray_WVS, rel_data$pray_EVS)
-
-## 3. Drop survey-specific variables
-rel_data[, c("pray_EVS", "pray_WVS")] <- NULL
 
 # SURVEY YEAR. Recoding
 ## Recode into numeric
@@ -315,88 +286,86 @@ rel_data$age <- as.numeric(rel_data$age)
 ### Some university-level education, without degree = Upper secondary / tertiary without degree
 ## University - level education, with degree = University - level education, with degree
 
-# WVS_EVS
-levels(rel_data$education)[levels(rel_data$education)=="Upper secondary"|
-                             levels(rel_data$education) =="Post-secondary non tertiary"|
-                             levels(rel_data$education) =="Short-cycle tertiary"] <- 
-  "Upper secondary / tertiary without degree"
-levels(rel_data$education)[levels(rel_data$education)=="Bachelor or equivalent"|
-                             levels(rel_data$education) =="Master or equivalent"|
-                             levels(rel_data$education) =="Doctoral or equivalent"] <- 
-  "University - level education, with degree"
-rel_data$education <- droplevels(rel_data$education)
+rel_data <- rel_data %>%
+  mutate(education = fct_recode(education, 
+                                "Upper secondary / tertiary without degree" = "Upper secondary",
+                                "Upper secondary / tertiary without degree" = "Post-secondary non tertiary",
+                                "Upper secondary / tertiary without degree" = "Short-cycle tertiary",
+                                "University - level education, with degree" = "Bachelor or equivalent",
+                                "University - level education, with degree" = "Master or equivalent",
+                                "University - level education, with degree" = "Doctoral or equivalent"))
 
-# WVS 6
-levels(rel_data_WVS6$education)[levels(rel_data_WVS6$education)=="No formal education"|
-                                  levels(rel_data_WVS6$education) =="Incomplete primary school"] <- 
-  "Less than primary"
-levels(rel_data_WVS6$education)[levels(rel_data_WVS6$education)=="Complete primary school"] <- "Primary"
-levels(rel_data_WVS6$education)[levels(rel_data_WVS6$education)=="Incomplete secondary school: technical/ vocational type"|
-                                  levels(rel_data_WVS6$education) =="Incomplete secondary school: university-preparatory type"] <- 
-  "Lower secondary"
-levels(rel_data_WVS6$education)[levels(rel_data_WVS6$education)=="Complete secondary school: technical/ vocational type"|
-                                  levels(rel_data_WVS6$education) =="Complete secondary school: university-preparatory type"|
-                                  levels(rel_data_WVS6$education) =="Some university-level education, without degree"] <- 
-  "Upper secondary / tertiary without degree"
+rel_data_WVS6 <- rel_data_WVS6 %>%
+  mutate(education = fct_recode(education, 
+                                "Less than primary" = "No formal education",
+                                "Less than primary" = "Incomplete primary school",
+                                "Primary" = "Complete primary school",
+                                "Lower secondary" = "Incomplete secondary school: technical/ vocational type",
+                                "Lower secondary" = "Incomplete secondary school: university-preparatory type",
+                                "Upper secondary / tertiary without degree" = "Complete secondary school: technical/ vocational type",
+                                "Upper secondary / tertiary without degree" = "Complete secondary school: university-preparatory type",
+                                "Upper secondary / tertiary without degree" = "Some university-level education, without degree"))
 
 
 # MEMBER. Recoding
 ## Make the same options as in WVS_EVS
-levels(rel_data_WVS6$member)[levels(rel_data_WVS6$member) == "Not a member"] <- "Not mentioned"
-levels(rel_data_WVS6$member)[levels(rel_data_WVS6$member) == "Inactive member"|
-                             levels(rel_data_WVS6$member) == "Active member"] <- 
-  "Mentioned"
-
+rel_data_WVS6 <- rel_data_WVS6 %>%
+  mutate(member = fct_recode(member, 
+                             "Not mentioned" = "Not a member",
+                             "Mentioned" = "Inactive member",
+                             "Mentioned" = "Active member"))
 
 # PRAYING. Recoding
 ## Make the same options as in WVS_EVS
-rel_data_WVS6$pray <- Recode(rel_data_WVS6$pray, 
-                            recodes = "'Several times a day' = 'Once or several times a day';
-                            'Once a day' = 'Once or several times a day';
-                            'Several times each week' = 'Once or several times a month';
-                            'Only when attending religious services' = 'Once or several times a month';
-                            'Only on special holy days' = 'Several times a year, only on special holidays';
-                            'Once a year' = 'Once a year or less often';
-                            'Less often than once a year' = 'Once a year or less often';
-                            'Never, practically never' = 'Never, practically never';
-                            else = NA",
-                            as.factor = T,
-                            levels = c("Once or several times a day",
-                                       "Once or several times a month",
-                                       "Several times a year, only on special holidays",
-                                       "Once a year or less often",
-                                       "Never, practically never"))
-
-rel_data_WVS6$pray <- as.numeric(rel_data_WVS6$pray)
+rel_data_WVS6 <- rel_data_WVS6 %>%
+  mutate(pray = fct_recode(pray, 
+                           "Once or several times a day" = "Several times a day",
+                           "Once or several times a day" = "Once a day",
+                           "Once or several times a month" = "Several times each week",
+                           "Once or several times a month" = "Only when attending religious services",
+                           "Several times a year, only on special holidays" = "Only on special holy days",
+                           "Once a year or less often" = "Once a year",
+                           "Once a year or less often" = "Less often than once a year"))  %>%
+  mutate(pray = fct_relevel(pray, rev))
 
 
 # BELONGING. Recoding
-## Recode into numeric for each survey because of the different coding of levels
-rel_data$belong <- as.numeric(rel_data$belong)
-rel_data_WVS6$belong <- as.numeric(rel_data_WVS6$belong)
+## 1. Recode into numeric for each survey because of the different coding of levels (too many levels)
+## 2. Set the new coding and reverse code
+rel_data <- rel_data %>%
+  mutate(belong = as.numeric(belong)) %>%
+  mutate(belong = ifelse(belong == "1", "Do not belong to a denomination", "Belong to a denomination")) %>%
+  mutate(belong = as.factor(belong)) %>%
+  mutate(belong = fct_relevel(belong, rev))
 
+rel_data_WVS6 <- rel_data_WVS6 %>%
+  mutate(belong = as.numeric(belong)) %>%
+  mutate(belong = ifelse(belong == "1", "Do not belong to a denomination", "Belong to a denomination")) %>%
+  mutate(belong = as.factor(belong)) %>%
+  mutate(belong = fct_relevel(belong, rev))
 
 # AGE. Recoding
 # Recode into numeric (survey year is already numeric) and collapse into categories
-rel_data_WVS6$age <- as.numeric(as.character(rel_data_WVS6$age))
-rel_data_WVS6$age <- Recode(rel_data_WVS6$age, 
-                            recodes = "16:24 = 1;
-                            25:34 = 2; 35:44 = 3; 45:54 = 4; 55:64 = 5; 65:102 = 6; else = NA", 
-                            as.factor = F)
-
+rel_data_WVS6 <- rel_data_WVS6 %>%
+  mutate(age = as.numeric(as.character(age))) %>%
+  mutate(age = case_when(
+    between(age, 16, 24) ~ 1,
+    between(age, 25, 34) ~ 2,
+    between(age, 35, 44) ~ 3,
+    between(age, 45, 54) ~ 4,
+    between(age, 55, 64) ~ 5,
+    between(age, 65, 102) ~ 6,
+    is.na(age) ~ NA_real_
+  ))
 
 # BGOD AND BHELL. Recoding
 # Reverse code
-for (item in c("bgod", "bhell")) {
-  rel_data_WVS6[, item] <- ordered(rel_data_WVS6[, item],
-                                  levels = c("No", "Yes"))
-}
-
+rel_data_WVS6 <- rel_data_WVS6 %>%
+  mutate(across(c(bgod, bhell), ~ fct_relevel(., rev))) 
 
 # INCOME. Recoding
 # Recode into numeric class
 rel_data_WVS6$income <- as.numeric(rel_data_WVS6$income)
-
 
 # Set the same order of columns in WVS_EVS as in WVS6
 rel_data <- rel_data[colnames(rel_data_WVS6)]
@@ -409,28 +378,27 @@ levels(rel_data$country)
 
 # -----------------------
 
+# Make person binary and reverse code
+rel_data <- rel_data %>%
+  mutate(person = fct_recode(person, "Not a religious person" = "An atheist")) %>%
+  mutate(person = fct_relevel(person, rev))
+
+# Reverse recode imprel and confidence
+rel_data <- rel_data %>%
+  mutate(across(c(imprel, confidence), ~ fct_relevel(., rev)))
+
 # Recode the remaining variables into numeric
-for (item in c("imprel", "confidence", "attend", "person", "impgod", 
-               "education")) {
-  rel_data[, item] <- as.numeric(rel_data[, item])
-}
+rel_data <- rel_data %>%
+  mutate(across(c(attend, pray, impgod, education), as.numeric))
 
-# Reverse recode indicators
-for (item in c("imprel", "confidence")) {
-  rel_data[,item] <- Recode(rel_data[,item], rec= "1=4; 2=3; 3=2; 4=1; else=NA")
-}
-
+# Reverse recode attendance
 rel_data$attend <- Recode(rel_data$attend, rec = "1=7; 2=6; 3=5; 4=4; 5=3; 6=2; 7=1; else=NA")
-rel_data$pray <- Recode(rel_data$pray, rec = "1=5; 2=4; 3=3; 4=2; 5=1; else=NA")
 
-# Make person binary
-rel_data$person <- Recode(rel_data$person, rec = "1=2; 2=1; 3=1; else=NA")
 
-# Make belonging binary
-rel_data$belong <- ifelse(rel_data$belong == "1", 1, 2)
-
-# impgod, member, bgod, and bhell do not need to be recoded: 
+# impgod and member do not need to be recoded: 
 ## higher scores already correspond to higher religiosity
+
+# praying, bgod, and bhell are already recoded
 
 #===================================================================================================
 
@@ -544,6 +512,8 @@ bwplot(imp_data$Andorra)
 for (i in 1:length(imp_data)){
   imp_data[[i]] <- complete(imp_data[[i]], action = "all") 
 }
+
+table(imp_data$Brazil[[1]]$attend)
 
 # -----------------------
 
@@ -1295,6 +1265,16 @@ for (i in 1:length(mlsem_dat)) {
 # APPENDIX
 
 # Table 2. Sample size and survey wave, by country
+n_tab <- fct_count(rel_data$country) %>%
+  merge(rel_data[, c("country", "survey")], by = 1) %>%
+  distinct() %>%
+  mutate(survey = ifelse(survey == "WVS 6", "WVS 6", 
+                         ifelse(survey == "EVS", "EVS 5", "WVS 7")))
+
+colnames(n_tab) <- c("Country", "N", "Wave")
+df_to_viewer(n_tab, rownames = F)
+
+
 n_tab <- data.frame(table(rel_data$country))
 n_tab <- merge(n_tab, rel_data[, c("country", "survey")], 
                by.y = "country", by.x = "Var1")
