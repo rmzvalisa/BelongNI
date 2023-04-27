@@ -433,23 +433,23 @@ sapply(c("imprel", "confidence", "belong", "attend", "pray", "person",
 # Drop Bangladesh, Indonesia, Iraq, Jordan, Lebanon, Pakistan, Thailand,
 ## Egypt, Palestine, Algeria, Haiti, Yemen, Libya, Kuwait, Qatar, and Ethiopia 
 ## due to the absence/empty response options of the core indicators
-rel_data <- subset(
-  rel_data, subset = !(rel_data$country %in% 
-                         c("Bangladesh", "Indonesia", "Iraq", "Jordan", "Lebanon", "Pakistan", "Thailand",
-                           "Egypt", "Palestine", "Algeria", "Haiti", "Yemen", "Libya", "Kuwait", "Qatar",
-                           "Ethiopia")))
-rel_data$country <- droplevels(rel_data$country)
-levels(rel_data$country)
+rel_data <- rel_data %>%
+  filter(!country %in% 
+           c("Bangladesh", "Indonesia", "Iraq", "Jordan", "Lebanon", "Pakistan", "Thailand",
+             "Egypt", "Palestine", "Algeria", "Haiti", "Yemen", "Libya", "Kuwait", "Qatar", "Ethiopia")) %>%
+  mutate(country = droplevels(country))
 # 87 countries
 
 # Also drop Hong Kong, Macau SAR, and Puerto Rico because 
 ## there are no RRI and RLI country-level measures
-rel_data <- subset(
-  rel_data, subset = !(rel_data$country %in% c("Hong Kong", "Macau SAR", "Puerto Rico")))
+rel_data <- rel_data %>%
+  filter(!country %in% c("Hong Kong", "Macau SAR", "Puerto Rico")) %>%
+  mutate(country = droplevels(country))
 
-rel_data$country <- droplevels(rel_data$country)
 levels(rel_data$country)
 # 84 countries for the further analysis
+
+#===================================================================================================
 
 #===================================================================================================
 
@@ -467,12 +467,18 @@ imp_method[c("person", "belong", "member", "gender", "bgod", "bhell")] <- "logre
 imp_method[c("confidence", "imprel")] <- "polr" # ordered categorical variables with > 2 categories
 imp_method[c("attend", "pray", "impgod", "age", "income", "education")] <- "pmm" # continuous variables
 
-# drop Russia, Tunisia, Turkey, Georgia, and Maldives
+# Make factor religiosity indicators as they appear in the usual analysis - numbers, not factor labels
+rel_data <- rel_data %>%
+  mutate(across(c(person, belong, member, bgod, bhell, confidence, imprel), as.numeric)) %>%
+  mutate(across(c(person, belong, member, bgod, bhell, confidence, imprel), as.factor))
+
+# Drop Russia, Tunisia, Turkey, Georgia, and Maldives
 # the corresponding data will be imputed separately due to the convergence issues
-imp_data <- subset(
-  rel_data, subset = !(rel_data$country %in% 
-                         c("Russia", "Tunisia", "Turkey", "Georgia", "Maldives")))
-imp_data$country <- droplevels(imp_data$country)
+imp_data <- rel_data %>%
+  filter(!country %in% c("Russia", "Tunisia", "Turkey", "Georgia", "Maldives")) %>%
+  mutate(country = droplevels(country))
+
+# Split into country-specific datasets
 imp_data <- split(imp_data, imp_data$country)
 
 # There are no missing values in: 
@@ -480,22 +486,18 @@ imp_data <- split(imp_data, imp_data$country)
 ## Drop these countries from the imputation; they will be added later
 ## lapply(imp_data, function(x)
 ##  sum(is.na(x[, c("person", "belong", "confidence", "imprel", "attend", "pray")])))
-
-imp_data <- subset(imp_data, subset = !(names(imp_data) %in% 
-                                          c("Rwanda", "Ghana", "Venezuela", "Nicaragua", 
-                                            "Morocco", "South Korea", "Colombia", "Canada", "Myanmar")))
+imp_data <- imp_data %>%
+  subset(!names(.) %in% c("Rwanda", "Ghana", "Venezuela", "Nicaragua", "Morocco", 
+                          "South Korea", "Colombia", "Canada", "Myanmar"))
 
 for (i in 1:length(imp_data)){
-  for (item in c("person", "belong", "confidence", "imprel")) {
-    imp_data[[i]][, item] <- as.factor(imp_data[[i]][, item])
-  } # member, bgod, bhell, and gender are already a factor
-    
-    imp_data[[i]] <- mice(data = imp_data[[i]], m = 5, #5 imputed datasets
-                          maxit = 100, #100 iterations
-                          meth = imp_method, predictorMatrix = pred_matrix, 
-                          seed = 12345, #to replicate the results
-                          print = F)
+  imp_data[[i]] <- mice(data = imp_data[[i]], m = 5, #5 imputed datasets
+                        maxit = 100, #100 iterations
+                        meth = imp_method, predictorMatrix = pred_matrix, 
+                        seed = 12345, #to replicate the results
+                        print = F)
 }
+
 
 # Ignore the warnings - logged events (for constant variables):
 ## Kyrgyzstan - constant bhell
@@ -513,8 +515,6 @@ for (i in 1:length(imp_data)){
   imp_data[[i]] <- complete(imp_data[[i]], action = "all") 
 }
 
-table(imp_data$Brazil[[1]]$attend)
-
 # -----------------------
 
 # Imputation for Russia and Georgia
@@ -526,25 +526,21 @@ table(imp_data$Brazil[[1]]$attend)
 ## "confidence", "member", "imprel"), 
 ## missing = "pairwise")
 
-imp_data_RG <- subset(rel_data, rel_data$country %in% c("Russia", "Georgia"))
-imp_data_RG$country <- droplevels(imp_data_RG$country)
-imp_data_RG$bgod <- NULL
-imp_data_RG <- split(imp_data_RG, imp_data_RG$country)
+imp_data_RG <- rel_data %>% 
+  filter(country %in% c("Russia", "Georgia")) %>%
+  mutate(country = droplevels(country), bgod = NULL) %>%
+  split(., .$country)
 
 pred_matrix <- make.predictorMatrix(data = imp_data_RG$Russia)
 pred_matrix[, c("country", "code", "year", "survey")] <- 0
 pred_matrix[c("country", "code", "year", "survey"), ] <- 0
 
 imp_method <- make.method(data = imp_data_RG$Russia)
-imp_method[c("person", "belong", "gender", "bhell")] <- "logreg"
-imp_method[c("confidence", "member", "imprel")] <- "polr"
+imp_method[c("person", "belong", "member", "gender", "bhell")] <- "logreg"
+imp_method[c("confidence", "imprel")] <- "polr"
 imp_method[c("attend", "pray", "impgod", "age", "income", "education")] <- "pmm"
 
 for (i in 1:length(imp_data_RG)){
-  for (item in c("person", "belong", "confidence", "imprel")) {
-    imp_data_RG[[i]][, item] <- as.factor(imp_data_RG[[i]][, item])
-  }
-  
   imp_data_RG[[i]] <- mice(data = imp_data_RG[[i]], m = 5, #5 imputed datasets
                            maxit = 100, #100 iterations
                            meth = imp_method, predictorMatrix = pred_matrix, 
@@ -574,20 +570,18 @@ imp_data$Georgia <- imp_data_RG$Georgia
 # Imputation for Tunisia
 ## Impute without bhell due to the convergence issues when predicting bgod (mice warning)
 ## high correlation with bgod (>0.9)
-Tunisia <- rel_data[rel_data$country=="Tunisia", ]
-Tunisia$bhell <- NULL
+Tunisia <- rel_data %>%
+  filter(country == "Tunisia")  %>%
+  mutate(country = droplevels(country), bhell = NULL)
+
 pred_matrix <- make.predictorMatrix(data = Tunisia)
 pred_matrix[, c("country", "code", "year", "survey")] <- 0
 pred_matrix[c("country", "code", "year", "survey"), ] <- 0
 
 imp_method <- make.method(data = Tunisia)
-imp_method[c("person", "belong", "gender", "bgod")] <- "logreg"
-imp_method[c("confidence", "member", "imprel")] <- "polr"
+imp_method[c("person", "belong", "member", "gender", "bgod")] <- "logreg"
+imp_method[c("confidence", "imprel")] <- "polr"
 imp_method[c("attend", "pray", "impgod", "age", "income", "education")] <- "pmm"
-
-for (item in c("person", "belong", "confidence", "imprel")) {
-  Tunisia[, item] <- as.factor(Tunisia[, item])
-}
 
 Tunisia <- mice(data = Tunisia, m = 5, #5 imputed datasets
                 maxit = 100, #100 iterations
@@ -610,20 +604,18 @@ imp_data$Tunisia <- Tunisia
 
 # Imputation for Turkey
 ## Impute without belong due to the convergence issues when predicting attendance (mice warning)
-Turkey <- rel_data[rel_data$country=="Turkey",]
-Turkey$belong <- NULL
+Turkey <- rel_data %>%
+  filter(country == "Turkey")  %>%
+  mutate(country = droplevels(country), belong = NULL)
+
 pred_matrix <- make.predictorMatrix(data = Turkey)
 pred_matrix[, c("country", "code", "year", "survey")] <- 0
 pred_matrix[c("country", "code", "year", "survey"), ] <- 0
 
 imp_method <- make.method(data = Turkey)
-imp_method[c("person", "gender", "bgod", "bhell")] <- "logreg"
-imp_method[c("confidence", "member", "imprel")] <- "polr"
+imp_method[c("person", "gender", "member", "bgod", "bhell")] <- "logreg"
+imp_method[c("confidence", "imprel")] <- "polr"
 imp_method[c("attend", "pray", "impgod", "age", "income", "education")] <- "pmm"
-
-for (item in c("person", "confidence", "imprel")) {
-  Turkey[, item] <- as.factor(Turkey[, item])
-}
 
 Turkey <- mice(data = Turkey, m = 5, #5 imputed datasets
                maxit = 100, #100 iterations
@@ -642,21 +634,20 @@ bwplot(Turkey)
 Turkey <- complete(Turkey, action = "all")
 imp_data$Turkey <- Turkey
 
-## Impute belong without attendance
-Turkey <- rel_data[rel_data$country=="Turkey",]
-Turkey$attend <- NULL
+
+# Impute belong without attendance
+Turkey <- rel_data %>%
+  filter(country == "Turkey")  %>%
+  mutate(country = droplevels(country), attend = NULL)
+
 pred_matrix <- make.predictorMatrix(data = Turkey)
 pred_matrix[, c("country", "code", "year", "survey")] <- 0
 pred_matrix[c("country", "code", "year", "survey"), ] <- 0
 
 imp_method <- make.method(data = Turkey)
-imp_method[c("person", "belong", "gender", "bgod", "bhell")] <- "logreg"
-imp_method[c("confidence", "member", "imprel")] <- "polr"
+imp_method[c("person", "belong", "member", "gender", "bgod", "bhell")] <- "logreg"
+imp_method[c("confidence", "imprel")] <- "polr"
 imp_method[c("pray", "impgod", "age", "income", "education")] <- "pmm"
-
-for (item in c("person", "belong", "confidence", "imprel")) {
-  Turkey[, item] <- as.factor(Turkey[, item])
-}
 
 Turkey <- mice(data = Turkey, m = 5, #5 imputed datasets
                maxit = 100, #100 iterations
@@ -681,21 +672,18 @@ for (i in 1:length(imp_data$Turkey)){
 
 # Imputation for Maldives
 ## Impute without bgod due to its high correlation with confidence (>0.9)
-Maldives <- rel_data[rel_data$country=="Maldives", ]
-Maldives$bgod <- NULL
+Maldives <- rel_data %>%
+  filter(country == "Maldives")  %>%
+  mutate(country = droplevels(country), bgod = NULL)
+
 pred_matrix <- make.predictorMatrix(data = Maldives)
 pred_matrix[, c("country", "code", "year", "survey")] <- 0
 pred_matrix[c("country", "code", "year", "survey"), ] <- 0
 
 imp_method <- make.method(data = Maldives)
-imp_method[c("person", "gender", "belong", "bhell")] <- "logreg"
-imp_method[c("confidence", "member", "imprel")] <- "polr"
+imp_method[c("person", "gender", "member", "belong", "bhell")] <- "logreg"
+imp_method[c("confidence", "imprel")] <- "polr"
 imp_method[c("attend", "pray", "impgod", "age", "income", "education")] <- "pmm"
-
-for (item in c("person", "confidence", "imprel", "belong")) {
-  Maldives[, item] <- as.factor(Maldives[, item])
-}
-
 
 Maldives <- mice(data = Maldives, m = 5, #5 imputed datasets
                  maxit = 100, #100 iterations
@@ -717,49 +705,40 @@ imp_data$Maldives <- Maldives
 # -----------------------
 
 # Make five datasets for each country that had no missing values
-imp_data_nomis <- subset(rel_data, 
-                         subset = (rel_data$country %in%
-                                     c("Rwanda", "Ghana", "Venezuela", "Nicaragua", 
-                                       "Morocco", "South Korea", "Colombia", "Canada", "Myanmar")))
-imp_data_nomis$country <- droplevels(imp_data_nomis$country)
-imp_data_nomis <- split(imp_data_nomis, imp_data_nomis$country)
-
-imp_data_nomis <- lapply(imp_data_nomis, function(x)
-  rep(list(x), 5))
+imp_data_nomis <- rel_data %>%
+  filter(country %in% 
+           c("Rwanda", "Ghana", "Venezuela", "Nicaragua", "Morocco", "South Korea", 
+             "Colombia", "Canada", "Myanmar")) %>%
+  mutate(country = droplevels(country)) %>%
+  split(., .$country) %>%
+  lapply(function(x) rep(list(x), 5))
 
 # Combine datasets
 imp_data <- append(imp_data, imp_data_nomis)
+
+
+setwd("/Users/alisa/Desktop/untitled folder 2")
+load("imp_data.RData")
 
 # -----------------------
 
 # Final imputed datasets
 
-for (i in 1:length(imp_data)){
-  
-  for (a in 1:length(imp_data[[i]])){
-    # Drop all variables used for imputation only
-    # Specify the same order of columns for all datasets
-    imp_data[[i]][[a]] <- imp_data[[i]][[a]][, c("country", "imprel", "confidence", "belong", "attend",
-                                                 "pray", "person", "year", "code", "survey")]
-    
-    imp_data[[i]][[a]]$country <- droplevels(imp_data[[i]][[a]]$country)
-    
-    # Recode factor variables into numeric
-    for (item in c("person", "belong", "confidence", "imprel")) {
-      imp_data[[i]][[a]][, item] <- as.numeric(imp_data[[i]][[a]][, item])
-    }
-    
-  }
-  
-}
+imp_data <- imp_data %>%
+  # Drop all variables used for imputation only
+  # Specify the same order of columns for all datasets
+  map(~ map(.x, select, country, imprel, confidence, belong, attend, pray, person, year, code, survey)) %>%
+  map(~ map(.x, ~ mutate(.x, country = droplevels(country)))) %>%
+  # Recode factor variables into numeric
+  map(~ map(.x, ~ mutate_at(.x, vars(person, belong, confidence, imprel), as.numeric)))
 
 imp_data <- imp_data[base::order(names(imp_data))]
 # 84 countries
 
 # save or download the imputed dataset 
 ## setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/02_AnalysisData")
-## save(imp_data, file = "imp_data_full_WVS_EVS.RData")
-## load("imp_data_full_WVS_EVS.RData")
+## save(imp_data, file = "imp_data_WVS_EVS.RData")
+## load("imp_data_WVS_EVS.RData")
 
 ## lapply(imp_data, function(x)
 ##  lapply(x, function(y)
