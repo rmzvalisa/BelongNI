@@ -18,7 +18,7 @@ Coding: 1 = Not at all important; 2 = Not very important; 3 = Rather important; 
 ## or upload the imputed data from the “02_AnalysisScripts” folder
 
 library(kableExtra)
-load("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/02_AnalysisData/imp_data_full_WVS_EVS.RData")
+load("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/02_AnalysisData/imp_data_WVS_EVS.RData")
 
 imprel_tab <- imp_data
 
@@ -86,7 +86,7 @@ kable(imprel_tab, "latex", booktabs = T, longtable = T, row.names = F,
 
 # Belonging to a denomination
 
-Coding: 1 = No, do not belong to a denomination; 2 = Yes, belong to a denomination
+Coding: 1 = Do not belong to a denomination; 2 = Belong to a denomination
 
 ```{r belong, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
 belong_tab <- imp_data
@@ -166,7 +166,7 @@ kable(attend_tab, "latex", booktabs = T, longtable = T, row.names = F,
 
 # Frequency of praying
 
-Coding: 1 = Never, practically never; 2 =  Once a year or less often; 3 = Several times a year, only on special holidays; 4 = Once or several times a month; 5 = Once or several times a day.
+Coding: 1 = Never, practically never; 2 =  Once a year or less often; 3 = Several times a year, only on special holidays; 4 = Once or several times a month; 5 = Once or several times a day
 
 ```{r pray, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
 pray_tab <- imp_data
@@ -207,7 +207,7 @@ kable(pray_tab, "latex", booktabs = T, longtable = T, row.names = F,
 
 # Identification as a religious person
 
-Coding: 1 = Not religious person; 2 = A religious person
+Coding: 1 = Not a religious person; 2 = A religious person
 
 ```{r person, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
 person_tab <- imp_data
