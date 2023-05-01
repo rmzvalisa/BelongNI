@@ -451,8 +451,6 @@ levels(rel_data$country)
 
 #===================================================================================================
 
-#===================================================================================================
-
 # IMPUTATION
 ## Imputation process for all countries is time-consuming
 ## There is code to load the imputed dataset at the end of the section
@@ -716,10 +714,6 @@ imp_data_nomis <- rel_data %>%
 # Combine datasets
 imp_data <- append(imp_data, imp_data_nomis)
 
-
-setwd("/Users/alisa/Desktop/untitled folder 2")
-load("imp_data.RData")
-
 # -----------------------
 
 # Final imputed datasets
@@ -756,27 +750,11 @@ ord_items <- c("person", "imprel", "confidence", "belong")
 
 # Compute correlations between variables
 ## and drop the countries with negative correlations or collinear variables
-cor_imp <- imp_data
-for (i in 1:length(cor_imp)) {
-  
-  for (a in 1:length(cor_imp[[i]])) { 
-    # Compute correlations that are used in CFA analyses
-    cor_imp[[i]][[a]] <- cor_imp[[i]][[a]][, c("person", "belong", "confidence", "imprel", 
-                                               "pray", "attend")]
-    
-    cor_imp[[i]][[a]] <- lavCor(as.data.frame(cor_imp[[i]][[a]]), 
-                                ordered = ord_items, output = "cor")
-    
-    # Remove diagonal variances
-    cor_imp[[i]][[a]] <- diag.remove(cor_imp[[i]][[a]], remove.val = NA)
-    
-    # Find negative correlations
-    cor_imp[[i]][[a]] <- ifelse(cor_imp[[i]][[a]] < 0, cor_imp[[i]][[a]], NA)
-    cor_imp[[i]][[a]] <- sum(!is.na(cor_imp[[i]][[a]]))
-   
-  }
-  
-}
+cor_imp <- imp_data %>%
+  map(~ map(.x, select, imprel, confidence, belong, attend, pray, person)) %>%
+  map(~ map(.x, ~ lavCor(as.data.frame(.), ordered = ord_items, output = "cor"))) %>%
+  map(~ map(.x, sna::diag.remove, remove.val = NA)) %>%
+  map(~ map(.x, ~ sum(!is.na(ifelse(. < 0, ., NA)))))
 
 lapply(cor_imp, function(x) 
   lapply(x, function(y)
@@ -785,10 +763,9 @@ lapply(cor_imp, function(x)
 # There are negative correlations in:
 ## China, Kenya, Maldives, Myanmar, Nigeria, the Philippines, Rwanda, Tunisia, and Zimbabwe
 ## additionally drop these countries
-imp_data <- subset(imp_data, 
-                   subset = !(names(imp_data) %in%
-                                c("China", "Kenya", "Maldives", "Myanmar", "Nigeria", "Philippines", "Rwanda",
-                                  "Tunisia", "Zimbabwe")))
+imp_data <- imp_data %>%
+  subset(!names(.) %in% c("China", "Kenya", "Maldives", "Myanmar", "Nigeria", "Philippines", "Rwanda",
+                          "Tunisia", "Zimbabwe"))
 
 # One-factor model - Model 2 from 
 ## Remizova, Alisa, Maksim Rudnev, and Eldad Davidov. 2022. 
@@ -827,12 +804,8 @@ data5 <- lapply(imp_data, function(x) x[[5]]) %>% do.call("rbind", .)
 data_list <- list(data1, data2, data3, data4, data5)
 
 # Model sample - select 50 countries
-mlsem_dat <- lapply(data_list, function(x) 
-  subset(x, subset = x$country %in% rownames(cfa_model)))
-
-for (i in 1:length(mlsem_dat)) {
-  mlsem_dat[[i]]$country <- droplevels(mlsem_dat[[i]]$country)
-}
+mlsem_dat <- map(data_list, ~subset(.x, subset = .x$country %in% rownames(cfa_model)) %>% 
+                   {.$country <- droplevels(.$country); .})
 
 # MGCFA to ensure the similarity of the factor structure
 mgcfa_model <- globalMI.mi.sep(model, data = mlsem_dat, ordered = ord_items, 
@@ -848,8 +821,6 @@ rm(data1, data2, data3, data4, data5)
 # Data: Brown, D., & James, P. Religious Characteristics of States Dataset Project
 ## Demographics v. 2.0 (RCS-Dem 2.0), COUNTRIES ONLY.
 
-# Reading data
-rcs_data <- read.spss("https://osf.io/xtvf5/download", use.value.labels = T, to.data.frame=T)
 # WVS6: select observations corresponding to the country-specific year of WVS data collection
 # WVS/EVS: select observations for 2015 year as the most recent data
 
@@ -857,23 +828,8 @@ rcs_data <- read.spss("https://osf.io/xtvf5/download", use.value.labels = T, to.
 ## NUMISO - Country Code assigned by International Standards Organization
 
 ## Christians:
-### CATPC - Percentage of Catholics
-### XPRTPC - Percentage of Extended Protestants (Combined Protestant, Anglican, Pentecostal)
-### ORTPC - Percentage of Orthodox
-## UPRTPC - Percentage of unspecified Protestants - to drop it for South Korea
-## Other Christians:
-### OCHRPC - Percentage of Other Non-Liminal Christians
-### CSYNPC - Percentage of Christian Syncretics (Mostly African and New World African spiritist and spiritualist denominations)
-### Percentage of Liminal Christians:
-#### ULCHPC - Percentage of unspecified Liminal Christians
-#### ECCPC - Percentage of Extra-Canonical Christians 
-#### LDSPC - Percentage of Latter-Day Saints (Mormons) 
-#### OECCPC - Percentage of Other Extra-Canonical Christians 
-#### NTCPC - Percentage of Non-Trinitarian Christians 
-#### JWTPC - Percentage of Jehovah’s Witnesses 
-#### UNIPC - Percentage of Unitarians
-#### ONTCPC - Percentage of Other Non-Trinitarian Christians
-#### OLCHPC - Percentage of Other Liminal Christians 
+## CHRPC - Percentage of Christians (All denominations combined; incl. liminal but not syncretic)
+## CSYNPC - Percentage of Christian Syncretics (Mostly African and New World African spiritist and spiritualist denominations)
 
 ## Muslims:
 ### MUSPC - Percentage of Muslims
@@ -884,13 +840,12 @@ rcs_data <- read.spss("https://osf.io/xtvf5/download", use.value.labels = T, to.
 ## Buddhists:
 ### BUDPC - Percentage of Buddhists
 ### BSYNPC - Percentage of Buddhist Syncretics 
-## Other religions:
-### East Asian Complex:
-#### JAIPC - Percentage of Jains
-#### SHNPC - Percentage of Shintoists
-#### CNFPC - Percentage of Confucianists
-#### TAOPC - Percentage of Taoists
-#### CHFPC - Percentage of Chinese Folk Religionists
+## Other Asian religions:
+### JAIPC - Percentage of Jains
+### SHNPC - Percentage of Shintoists
+### CNFPC - Percentage of Confucianists
+### TAOPC - Percentage of Taoists
+### CHFPC - Percentage of Chinese Folk Religionists
 
 ## NREPC - Percentage of Not Religious
 ## UNKPC - Percentage of Unknown
@@ -905,53 +860,30 @@ rcs_data <- read.spss("https://osf.io/xtvf5/download", use.value.labels = T, to.
 ### NEWPC - Percentage of New Age Religionists
 ### OREPC - Percentage of Other Religionists
 
-## UCHRPC - Percentage of unspecified Christians
-### All known Christians of unknown classification;
-### also used when sum of branches departs from best estimate of total Christians; 
-### negative number denotes double-affiliates
+# Reading data
+rcs_data <- read.spss("https://osf.io/xtvf5/download", use.value.labels = T, to.data.frame = T) %>%
+  # Change country code for Yugoslavia, as Serbia
+  mutate(NUMISO = ifelse(NUMISO == "688", "891", NUMISO))
 
-# Change country code for Yugoslavia, as Serbia
-rcs_data$NUMISO[rcs_data$NUMISO =="688"] <- "891"
+# Subset WVS/EVS countries and the most recent available 2015 year and select variables
+rel_compos_WVS_EVS <- rcs_data  %>% 
+  rename(code = NUMISO, year = YEAR) %>%
+  filter(code %in% WVS7_EVS5$code, year == 2015) %>%
+  select(code, year, CHRPC, CSYNPC, MUSPC, MSYNPC, 
+         HINPC, BUDPC, BSYNPC, SHNPC, CNFPC, TAOPC, CHFPC, JAIPC,
+         NREPC, UNKPC, 
+         JEWPC, MANPC, ZORPC, BAHPC, SIKPC, INDPC, NEWPC, OREPC)
 
-# Subset WVS/EVS countries and the most recent available 2015 year
-rel_compos_WVS_EVS <- subset(rcs_data, subset = ((rcs_data$NUMISO %in% WVS7_EVS5$code) & 
-                                                rcs_data$YEAR == 2015))
-
-# subset WVS 6 countries and the year corresponding to the data collection year
-rel_compos_WVS6 <- subset(rcs_data, subset = ((rcs_data$NUMISO %in% rel_data_WVS6$code) & 
-                                                (rcs_data$YEAR %in% rel_data_WVS6$year))) 
-
-# subset only 12 countries that did not participate in WVS/EVS
-rel_compos_WVS6 <- merge(rel_data_WVS6[ ,c("code", "year")], 
-                         rel_compos_WVS6, by.x = c("code", "year"), 
-                         by.y = c("NUMISO", "YEAR"))
-rel_compos_WVS6 <- rel_compos_WVS6[!duplicated(rel_compos_WVS6$code), ]
+# Subset WVS 6 countries and the year corresponding to the data collection and select variables
+rel_compos_WVS6 <- rcs_data %>% 
+  rename(code = NUMISO, year = YEAR) %>%
+  merge(rel_data_WVS6[, c("code", "year")], by = c("code", "year")) %>%
+  distinct(code, .keep_all = TRUE) %>%
+  select(code, year, CHRPC, CSYNPC, MUSPC, MSYNPC, 
+         HINPC, BUDPC, BSYNPC, SHNPC, CNFPC, TAOPC, CHFPC, JAIPC,
+         NREPC, UNKPC, 
+         JEWPC, MANPC, ZORPC, BAHPC, SIKPC, INDPC, NEWPC, OREPC)
 # no Haiti 332???
-
-# Select variables
-rel_compos_WVS_EVS <- select(rel_compos_WVS_EVS, c(NUMISO, YEAR, CATPC, XPRTPC, ORTPC, 
-                                             OCHRPC, CSYNPC, UPRTPC, 
-                                             ULCHPC, ECCPC, LDSPC, OECCPC, NTCPC, JWTPC, UNIPC, ONTCPC, OLCHPC,
-                                             MUSPC, MSYNPC, 
-                                             HINPC,  
-                                             BUDPC, BSYNPC,
-                                             SHNPC, CNFPC, TAOPC, CHFPC, 
-                                             NREPC, UNKPC, 
-                                             JEWPC, MANPC, ZORPC, BAHPC, JAIPC, SIKPC, INDPC, NEWPC, OREPC,
-                                             UCHRPC))  
-names(rel_compos_WVS_EVS)[names(rel_compos_WVS_EVS) == "NUMISO"] <- "code"
-names(rel_compos_WVS_EVS)[names(rel_compos_WVS_EVS) == "YEAR"] <- "year"
-
-rel_compos_WVS6 <- select(rel_compos_WVS6, c(code, year, CATPC, XPRTPC, ORTPC, 
-                                             OCHRPC, CSYNPC, UPRTPC, 
-                                             ULCHPC, ECCPC, LDSPC, OECCPC, NTCPC, JWTPC, UNIPC, ONTCPC, OLCHPC,
-                                             MUSPC, MSYNPC, 
-                                             HINPC,  
-                                             BUDPC, BSYNPC,
-                                             SHNPC, CNFPC, TAOPC, CHFPC, 
-                                             NREPC, UNKPC, 
-                                             JEWPC, MANPC, ZORPC, BAHPC, JAIPC, SIKPC, INDPC, NEWPC, OREPC,
-                                             UCHRPC)) 
 
 rel_compos <- rbind(rel_compos_WVS6, rel_compos_WVS_EVS)
 rm(rel_compos_WVS6, rel_compos_WVS_EVS)
@@ -963,152 +895,37 @@ rel_compos <- subset(rel_compos, subset = rel_compos$code %in% rel_data$code)
 # ----------------------------
 
 # Calculate final country-level predictors
-## Followers of Asian Religions
-rel_compos$RCASIAN <- rowSums(
-  rel_compos[, c("SHNPC", "CNFPC", "TAOPC", "CHFPC", "JAIPC", ## other Asian religions
-                 "HINPC", 
-                 "BUDPC", "BSYNPC" ## Buddhists
-  )], na.rm = T)
+rel_compos <- rel_compos %>%
+  mutate(RCCHR = rowSums(select(., CHRPC, CSYNPC), na.rm = TRUE), # Christians
+         RCASIAN = rowSums(select(., SHNPC, CNFPC, TAOPC, CHFPC, JAIPC, 
+                                  HINPC, BUDPC, BSYNPC), na.rm = TRUE), # Asian Religions
+         RCMUSLIM = rowSums(select(., MUSPC, MSYNPC), na.rm = TRUE), # Muslims
+         RCOTHER = rowSums(select(., NREPC, UNKPC,
+                                    JEWPC, MANPC, ZORPC, BAHPC, SIKPC, INDPC, NEWPC, OREPC), 
+                             na.rm = TRUE) # All other categories
+  )  %>%
+  mutate(RCABR = rowSums(select(., RCCHR, RCMUSLIM), na.rm = TRUE) # Abrahamic religions
+         )
 
-
-## Christians
-## for South Korea add negative UPRTPC to XPRTPC
-rel_compos$XPRTPC <- ifelse((rel_compos$code == "410"), 
-                            (rel_compos$XPRTP + rel_compos$UPRTPC), 
-                            rel_compos$XPRTPC)
-
-rel_compos$RCCHR <- rowSums(
-  rel_compos[,c("CATPC", "XPRTPC", "ORTPC", 
-                "ULCHPC", "ECCPC", "LDSPC", "OECCPC", "NTCPC", 
-                "JWTPC", "UNIPC", "ONTCPC", "OLCHPC", ## Liminal Christians
-                "OCHRPC", "CSYNPC" ## other Christians
-  )], na.rm = T)
-
-## Muslims
-rel_compos$RCMUSLIM <- rowSums(rel_compos[,c("MUSPC", "MSYNPC")], na.rm = T)
-
-## Followers of Abrahamic religions
-rel_compos$RCABR <- rowSums(rel_compos[,c("RCCHR", "RCMUSLIM")], na.rm = T)
-
-## Variable with all other categories
-rel_compos$RCOTHER <- rowSums(
-  rel_compos[,c("NREPC", "UNKPC", 
-                "JEWPC", "MANPC", "ZORPC", "BAHPC", "SIKPC",
-                "INDPC", "NEWPC", "OREPC" ## other religions
-  )], na.rm = T)
-
-# ----------------------------
-
-# Adjust variables
-
-# Add country names
-rel_compos <- merge(rel_compos, rel_data[, c(1, 17)], by = c("code"))
-rel_compos <- rel_compos[!duplicated(rel_compos$code), ]
+# Add country names and Northern Ireland with two samples for Germany
+rel_compos <- rel_compos %>% 
+  merge(rel_data[, c("code", "country")], by = c("code")) %>%
+  distinct(country, .keep_all = TRUE)
 
 # Calculate the total percentage to see the discrepancy in estimates
 ## rel_compos$SUM <- rowSums(rel_compos[,c("RCABR", "RCASIAN", "RCOTHER")], na.rm = T)
-## df_to_viewer(rel_compos[, c("country", "SUM", "UCHRPC")], rownames = F)
+## df_to_viewer(rel_compos[, c("country", "SUM")], rownames = F)
 
-# Add percentage of unspecified Christians to Abrahamic religions variable in:
-## France, Iceland, India, Malaysia, Mongolia, New Zealand, Rwanda, South Africa, 
-## United States
-## UCHRPC is positive + less than 100% of religious adherents in total for these countries 
-## -> additional observations are needed
-
-## Argentina, Bolivia, Brazil, Cyprus, 
-## Guatemala, Japan, Kenya, Mexico, Nicaragua, Nigeria, 
-## Philippines, Serbia, Singapore, Vietnam, Zimbabwe, Netherlands, Great Britain
-## Spain, Switzerland, Montenegro, Bosnia and Herzegovina, Denmark
-## UCHRPC is negative + more than 100% of religious adherents in total 
-## -> possibly double-affiliated Christians
-rel_compos$RCABR <- ifelse((rel_compos$country == "France"|
-                              rel_compos$country == "Iceland"|
-                              rel_compos$country == "India"|
-                              rel_compos$country == "Malaysia"|
-                              rel_compos$country == "Mongolia"|
-                              rel_compos$country == "New Zealand"|
-                              rel_compos$country == "Rwanda"|
-                              rel_compos$country == "South Africa"|
-                              rel_compos$country == "United States"|
-                              rel_compos$country == "Argentina"|
-                              rel_compos$country == "Bolivia"|
-                              rel_compos$country == "Brazil"|
-                              rel_compos$country == "Cyprus"|
-                              rel_compos$country == "Guatemala"|
-                              rel_compos$country == "Japan"|
-                              rel_compos$country == "Kenya"|
-                              rel_compos$country == "Mexico"|
-                              rel_compos$country == "Nicaragua"|
-                              rel_compos$country == "Nigeria"|
-                              rel_compos$country == "Philippines"|
-                              rel_compos$country == "Serbia"|
-                              rel_compos$country == "Singapore"|
-                              rel_compos$country == "Vietnam"|
-                              rel_compos$country == "Zimbabwe"|
-                              rel_compos$country == "Netherlands"|
-                              rel_compos$country == "Great Britain"|
-                              rel_compos$country == "Spain"|
-                              rel_compos$country == "Switzerland"|
-                              rel_compos$country == "Montenegro"|
-                              rel_compos$country == "Bosnia and Herzegovina"|
-                              rel_compos$country == "Denmark"),
-                           rowSums(rel_compos[,c("RCABR", "UCHRPC")], na.rm = T), rel_compos$RCABR)
-
-
-# If the total percentage of adherents of all religions is >100%, subtract the extra %
-## from all categories (if a category is higher than extra %)
-## proportionally to the number of variables in total: 
-rel_compos[is.na(rel_compos)] <- 0
-rel_compos$SUM <- rowSums(
-  rel_compos[,c("RCABR", "RCASIAN", "RCOTHER")], na.rm = T)
-rel_compos$DIF <- (100 - rel_compos$SUM)
-
-# Number of non-zero elements (as we cannot subtract the difference from religions with zero %)
-## It is not possible to subtract from all three categories in, for example, Serbia or Albania
-rel_compos$NMISS <- rowSums(
-  rel_compos[,c("RCABR", "RCASIAN", "RCOTHER")] != 0)
-
-# Calculate the new difference to further subtraction based on non-zero elements
-## because the difference is negative - subtract from 0
-rel_compos$DIF1 <- (0 - rel_compos$DIF/rel_compos$NMISS)
-
-# We cannot subtract from cells with values lower than the potential subtraction itself
-# -> count the number of cells where we can subtract 
-rel_compos$NMISS1 <- rowSums(
-  rel_compos[,c("RCABR", "RCASIAN", "RCOTHER")] > rel_compos$DIF1)
-
-# Repeat the procedure - the subtraction value changes 
-# -> the number of cells where we can subtract changes as well
-rel_compos$DIF1  <- (0 - rel_compos$DIF/rel_compos$NMISS1)
-rel_compos$NMISS1 <- rowSums(
-  rel_compos[,c("RCABR", "RCASIAN", "RCOTHER")] > rel_compos$DIF1)
-
-# Final differences to subtract
-rel_compos$DIF1  <- (0 - rel_compos$DIF/rel_compos$NMISS1)
-
-# Subtract 
-for (item in c("RCABR", "RCASIAN", "RCOTHER")) {
-  rel_compos[, item] <- ifelse((rel_compos[, item] > rel_compos$DIF1), 
-                               (rel_compos[, item] - rel_compos$DIF1), 
-                               rel_compos[, item])
-}
-
-# If you want to check
-## table(rowSums(rel_compos[,c("RCABR", "RCASIAN", "RCOTHER")], na.rm = T))
-## all countries have the total percentage = 100
+# Adjust the variables in South Korea and Netherlands:
+## the total percentage of adherents of all religions is a bit > 100%
+## -> subtract the extra % from all categories proportionally to the number of these categories
+rel_compos <- rel_compos %>%
+  mutate(SUM = rowSums(.[c("RCABR", "RCASIAN", "RCOTHER")], na.rm = TRUE)) %>%
+  mutate(DIF = if_else(country %in% c("South Korea", "Netherlands"), (SUM - 100)/3, 0)) %>%
+  mutate_at(vars(RCABR, RCASIAN, RCOTHER), ~ if_else(country %in% c("South Korea", "Netherlands"), . - DIF, .))
 
 rel_compos <- trim(rel_compos)
 rel_compos <- rel_compos[order(rel_compos$country), ] 
-
-# Duplicate Germany for two samples:
-rel_compos <- rbind(rel_compos, rel_compos[rel_compos$country == "Germany West", ])
-rel_compos[nrow(rel_compos), "country"] <- "Germany East"
-
-# Duplicate the Great Britain for the WVS Northern Ireland
-rel_compos <- rbind(rel_compos, rel_compos[rel_compos$country == "Great Britain", ])
-rel_compos[nrow(rel_compos), "country"] <- "Northern Ireland"
-
-rel_compos <- rel_compos[order(rel_compos$country), ]
 
 #----------------------------------------------------------------------------------------
 
@@ -1126,9 +943,9 @@ rel_compos <- rel_compos[order(rel_compos$country), ]
 
 # Read the data
 zones <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
-                    sheet = "Predictors")
-zones[, c("COMMALL", "TAX")] <- NULL
-zones[is.na(zones)] <- 0
+                    sheet = "Predictors") %>%
+  select(-c(COMMALL, TAX)) %>%
+  replace(is.na(.), 0)
 
 #----------------------------------------------------------------------------------------
 
@@ -1137,9 +954,19 @@ zones[is.na(zones)] <- 0
 
 # Read the data
 communism <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx",
-                        sheet = "Predictors")
-communism <- select(communism, c(country, COMMALL)) 
-communism[is.na(communism)] <- 0
+                        sheet = "Predictors") %>%
+  select(c(country, COMMALL)) %>%
+  replace(is.na(.), 0)
+
+#-----------------------------------------------------------------------------------------------
+
+# Religious taxes
+
+# Read the data
+taxes <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx",
+                    sheet = "Predictors") %>%
+  select(c(country, TAX)) %>%
+  replace(is.na(.), 0)
 
 #----------------------------------------------------------------------------------------
 
@@ -1154,67 +981,48 @@ communism[is.na(communism)] <- 0
 # Read the data from online repository or download from the InputData folder
 rands_data <- read.spss("https://osf.io/mq2kt/download", use.value.labels = T, to.data.frame = T)
 
-rel_regulation <- select(rands_data, c(COUNTRY, NUMISO,
-                                       NXX2010, NXX2011, NXX2012, NXX2013, NXX2014,
-                                       LXX2010, LXX2011, LXX2012, LXX2013, LXX2014))
-
-# Change country code for Yugoslavia, as Serbia
-rel_regulation$NUMISO[rel_regulation$NUMISO =="688"] <- "891"
-
-rel_regulation <- merge(
-  rel_regulation, rel_data[, c(1,17)], 
-  by.x = c("NUMISO"), by.y = c("code"))
-rel_regulation <- rel_regulation[!duplicated(rel_regulation$country), ]
-
-# Reshape data to the long format
-rel_regulation <- reshape(rel_regulation, direction = "long",
-                          varying = list(NXX = c("NXX2010", "NXX2011", "NXX2012", "NXX2013", "NXX2014"),
-                                         LXX = c("LXX2010", "LXX2011", "LXX2012", "LXX2013", "LXX2014")),
-                          timevar = c("year"),
-                          times = c("2010", "2011", "2012", "2013", "2014"),
-                          idvar = "country",
-                          sep = "",
-                          v.names = c("NXX", "LXX"))
+# Select variables
+rel_regulation <- rands_data %>%
+  select(c(COUNTRY, NUMISO,
+           NXX2010, NXX2011, NXX2012, NXX2013, NXX2014,
+           LXX2010, LXX2011, LXX2012, LXX2013, LXX2014)) %>% 
+  
+  # Change country code for Yugoslavia, as Serbia
+  mutate(NUMISO = ifelse(NUMISO == "688", "891", NUMISO)) %>% 
+  
+  # Reshape data to the long format
+  reshape(direction = "long",
+          varying = list(NXX = c("NXX2010", "NXX2011", "NXX2012", "NXX2013", "NXX2014"),
+                         LXX = c("LXX2010", "LXX2011", "LXX2012", "LXX2013", "LXX2014")),
+          timevar = c("year"),
+          times = c("2010", "2011", "2012", "2013", "2014"),
+          idvar = "COUNTRY",
+          sep = "",
+          v.names = c("NXX", "LXX"))
 
 # Subset WVS/EVS countries and the most recent available 2014 year
-rel_regulation_WVS_EVS <- subset(rel_regulation, subset = ((rel_regulation$NUMISO %in% WVS7_EVS5$code) & 
-                                                          rel_regulation$year == 2014))
+rel_regulation_WVS_EVS <- rel_regulation %>%
+  filter(NUMISO %in% WVS7_EVS5$code, year == 2014)
 
-# Select WVS 6 countries and the year corresponding to the data collection year
-rel_regulation_WVS6 <- subset(rel_regulation, subset = ((rel_regulation$NUMISO %in% rel_data_WVS6$code) & 
-                                                          (rel_regulation$year %in% rel_data_WVS6$year))) 
+# Subset WVS 6 countries and the year corresponding to the data collection year
+rel_regulation_WVS6 <- rel_regulation  %>%
+  merge(rel_data_WVS6[, c("code", "year")], by.x = c("NUMISO", "year"), by.y = c("code", "year")) %>%
+  distinct(COUNTRY, .keep_all = TRUE)
 
-rel_regulation_WVS6 <- merge(rel_data_WVS6[,c("code", "year")], rel_regulation_WVS6, by.x = c("code", "year"), 
-                             by.y = c("NUMISO", "year"))
-rel_regulation_WVS6 <- rel_regulation_WVS6[!duplicated(rel_regulation_WVS6$code), ]
-
-rel_regulation_WVS_EVS$COUNTRY <- NULL
-rel_regulation_WVS6$COUNTRY <- NULL
-
-colnames(rel_regulation_WVS_EVS)[1] <- "code"
+# Set the same order of columns in WVS_EVS as in WVS6
+rel_regulation_WVS6 <- rel_regulation_WVS6[colnames(rel_regulation_WVS_EVS)]
 
 # Combine datasets
-rel_regulation <- rbind(rel_regulation_WVS6, rel_regulation_WVS_EVS)
-
-# Set column names:
-## RRI - Religious Regulation Index
-## RLI - Religious Legislation Index
-names(rel_regulation)[names(rel_regulation) == "NXX"] <- 'RRI'
-names(rel_regulation)[names(rel_regulation) == "LXX"] <- 'RLI'
+rel_regulation <- rbind(rel_regulation_WVS6, rel_regulation_WVS_EVS) %>%
+  rename(RRI = NXX, RLI = LXX, code = NUMISO) %>%
+  merge(rel_data[, c("country", "code")], by = "code") %>%
+  distinct(country, .keep_all = TRUE) %>%
+  select(-COUNTRY)
 
 rel_regulation <- trim(rel_regulation)
 rel_regulation <- rel_regulation[order(rel_regulation$country), ]
 
 rm(rel_regulation_WVS6, rel_regulation_WVS_EVS)
-
-#-----------------------------------------------------------------------------------------------
-
-# Religious taxes
-
-taxes <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx",
-                     sheet = "Predictors")
-taxes <- select(taxes, c(country, TAX)) 
-taxes[is.na(taxes)] <- 0
 
 #-----------------------------------------------------------------------------------------------
 
@@ -1251,18 +1059,6 @@ n_tab <- fct_count(rel_data$country) %>%
                          ifelse(survey == "EVS", "EVS 5", "WVS 7")))
 
 colnames(n_tab) <- c("Country", "N", "Wave")
-df_to_viewer(n_tab, rownames = F)
-
-
-n_tab <- data.frame(table(rel_data$country))
-n_tab <- merge(n_tab, rel_data[, c("country", "survey")], 
-               by.y = "country", by.x = "Var1")
-colnames(n_tab) <- c("Country", "N", "Wave")
-n_tab <- n_tab[!duplicated(n_tab$Country), ]
-
-n_tab$Wave <- ifelse(n_tab$Wave == "WVS 6", "WVS 6", 
-                     ifelse(n_tab$Wave == "EVS", "EVS 5", "WVS 7"))
-
 df_to_viewer(n_tab, rownames = F)
 
 # ----------------------------
