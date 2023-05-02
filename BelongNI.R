@@ -756,6 +756,8 @@ cor_imp <- imp_data %>%
   map(~ map(.x, sna::diag.remove, remove.val = NA)) %>%
   map(~ map(.x, ~ sum(!is.na(ifelse(. < 0, ., NA)))))
 
+## ignore the warnings
+
 lapply(cor_imp, function(x) 
   lapply(x, function(y)
     y == 0))
@@ -781,6 +783,8 @@ imprel ~~ confidence;
 # save only the countries with acceptable model fit
 cfa_model <- groupwiseCFA.mi.sep(model, data = imp_data, ordered = ord_items, 
                                  estimator = "WLSMV", out = c("goodfit"))
+
+## ignore the warnings
 
 # 50 countries
 ## Asian: India, Japan, Malaysia, Singapore, Taiwan, Vietnam
