@@ -1050,6 +1050,7 @@ for (i in 1:length(mlsem_dat)) {
 }
 
 # You can run all models with the following command:
+runmodels()
 
 # ===================================================================================================
 
