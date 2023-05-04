@@ -1031,18 +1031,17 @@ rm(rel_regulation_WVS6, rel_regulation_WVS_EVS)
 #-----------------------------------------------------------------------------------------------
 
 # Merge imputed data with country-level predictors
-mlsem_dat <- lapply(mlsem_dat, function(y) 
-  Reduce(function(x, z) merge(x, z, by = c("country"), all.x = F),
-         list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER")], 
-              communism[, c("country", "COMMALL")], 
-              taxes[, c("country", "TAX")], 
-              rel_regulation[, c("country", "RRI", "RLI")],
-              zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
-                        "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", "ZRETWEST")])))
+mlsem_dat <- mlsem_dat %>% 
+  lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
+                            list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER")], 
+                                 communism[, c("country", "COMMALL")], 
+                                 taxes[, c("country", "TAX")], 
+                                 rel_regulation[, c("country", "RRI", "RLI")],
+                                 zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
+                                           "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", "ZRETWEST")])
+  )) %>% 
+  map(~ mutate(., country = droplevels(country)))
 
-for (i in 1:length(mlsem_dat)) {
-  mlsem_dat[[i]]$country <- droplevels(mlsem_dat[[i]]$country)  
-}
 
 # Save data for MLSEM
 setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus")
@@ -1067,46 +1066,42 @@ df_to_viewer(n_tab, rownames = F)
 
 # ----------------------------
 
+
 # Table ... Percentage of missing observations for each religiosity indicator, by country
-mis_tab <- aggregate(.~country,
-                     rel_data[, c("country", "imprel", "confidence", "belong", "attend",
-                                  "pray", "person")], 
-                     FUN = function(x) 
-                       mean(is.na(x))*100, na.action=NULL)
 
-# For countries with omitted questions
-mis_tab[mis_tab==100] <- NA
+mis_tab <- rel_data %>% 
+  mutate(across(c(imprel, confidence, belong, attend, pray, person), as.numeric)) %>% 
+  group_by(country) %>% 
+  
+  # Means for each variable in each country
+  summarize(across(c(imprel, confidence, belong, attend, pray, person), 
+                    ~ mean(is.na(.))*100)) %>%
+  
+  # Means across variables in each country
+  mutate(Mean = rowMeans(.[, 2:7], na.rm = TRUE)) %>% 
+  trim() %>% 
+  arrange(country) %>% 
+  bind_rows(summarize_all(., ~ if(is.numeric(.)) mean(., na.rm = TRUE) else "Mean")) %>% 
+  
+  # Means across countries for each variable
+  mutate(across(c(imprel, confidence, belong, attend, pray, person, Mean), 
+                ~ifelse(is.na(.), "--", round(., 0)))) %>% 
+  rename(`Importance of religion` = imprel, 
+         `Confidence in institutions` = confidence,
+         `Belonging to a denomination` = belong,
+         `Frequency of a religious attendance` = attend,
+         `Frequency of praying` = pray,
+         `Identification as religious person` = person, 
+         Country = country)
 
-# Calculate means for countries
-mis_tab$Mean <- apply(mis_tab[, 2:7], 1, function(x)
-  mean(x, na.rm = T))
-
-# Calculate means for variables
-mis_tab[nrow(mis_tab) + 1, ] <- NA
-mis_tab[nrow(mis_tab), 2:8] <- apply(mis_tab[, 2:8], 2, function(x)
-  mean(x, na.rm = T))
-
-mis_tab[, 2:8] <- round(mis_tab[, 2:8], 0)
-
-mis_tab <- trim(mis_tab)
-mis_tab <- mis_tab[order(mis_tab$country), ]
-mis_tab[, 2:8][is.na(mis_tab[, 2:8])] <- "--"
-
-colnames(mis_tab) <- c("Country", "Importance of religion", 
-                       "Confidence in institutions", "Belonging to a denomination",
-                       "Frequency of a religious attendance", "Frequency of praying",
-                       "Identification as religious person", "Mean")
 df_to_viewer(mis_tab, rownames = F)
+
 
 # ----------------------------
 
 # Table ... Fit measures of the factor model across five imputed datasets, by country
 cfa_model_all <- groupwiseCFA.mi.sep(model, data = imp_data, ordered = ord_items, 
                                      estimator = "WLSMV", out = c("fit"))
-
-## The model did not converge for Ukraine on the second dataset
-## probably because correlation between variables belong and person is (nearly) 1.0
-## Moreover, there are negqative variances on the fourth dataset
 
 # ----------------------------
 
@@ -1192,7 +1187,7 @@ kable(cont_tab, row.names = FALSE) %>%
 
 # ----------------------------
 
-# Table 12. Number (share) of countries for binary country-level predictors
+# Table ... Number (share) of countries for binary country-level predictors
 bin_tab <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
   select(., c("ZAFRICA", "ZLA", "ZINDIC", "ZSINIC", "ZISLAM", "ZNWEST", 
               "ZORT", "ZOLDWEST", "ZRETWEST", "ZREFWEST",
