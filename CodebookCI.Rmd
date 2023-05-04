@@ -1,0 +1,52 @@
+---
+title: "Codebook CountryInfo"
+author: "Remizova Alisa"
+output: pdf_document
+---
+
+This is the codebook for the "CountryInfoWVS_EVS.xlsx" dataset. It was created manually for the current research. Each row in the dataset is a country. 
+
+# "Predictors" sheet
+
+**country** = name of the country
+
+Albania, Algeria, Andorra, Argentina, Armenia, Australia, Austria, Azerbaijan, Bangladesh, Belarus, Bolivia, Bosnia and Herzegovina, Brazil, Bulgaria, Canada, Chile, China, Colombia, Croatia, Cyprus, Czechia, Denmark, Ecuador, Egypt, Estonia, Ethiopia, Finland, France, Georgia, Germany East, Germany West, Ghana, Great Britain, Greece, Guatemala, Haiti, Hong Kong, Hungary, Iceland, India, Indonesia, Iran, Iraq, Italy, Japan, Jordan, Kazakhstan, Kenya, Kuwait, Kyrgyzstan, Latvia, Lebanon, Libya, Lithuania, Macau SAR, Malaysia, Maldives, Mexico, Mongolia, Montenegro, Morocco, Myanmar, Netherlands, New Zealand, Nicaragua, Nigeria, North Macedonia, Northern Ireland, Norway, Pakistan, Palestine, Peru, Philippines, Poland, Portugal, Puerto Rico, Qatar, Romania, Russia, Rwanda, Serbia, Singapore, Slovakia, Slovenia, South Africa, South Korea, Spain, Sweden, Switzerland, Taiwan, Tajikistan, Thailand, Trinidad and Tobago, Tunisia, Turkey, Ukraine, United States, Uruguay, Uzbekistan, Venezuela, Vietnam, Yemen, Zimbabwe
+
+**Zone** = Welzel's cultural zones in long format
+
+"ZAFRICA" = "Sub-Saharan Africa", "ZINDIC" = "Indic East", "ZSINIC" = "Sinic East", "ZISLAM" = Islamic East", "ZLA" = "Latin America", "ZNWEST" = "New West", "ZORT" = "Orthodox East", 
+"ZOLDWEST" = "Old West", "ZRETWEST" = "Returned West", "ZREFWEST" = "Reformed West"
+
+**ZAFRICA:ZORT** = Cultural zones in wide format (used in the analysis) 
+
+ZAFRICA, ZLA, ZINDIC,	ZSINIC, ZISLAM,	ZNWEST,	ZOLDWEST,	ZRETWEST,	ZREFWEST,	ZORT
+
+0 = country does not belong to the cultural zone, 1 = country belongs to the cultural zone
+
+**COMMALL** = communist countries
+
+0 = country was not or is not under the communist rule, 1 = country was or is under the communist rule
+
+**TAX** = countries with mandatory religious taxes
+
+0 = country does not have a religious tax, 1 = country has a religious tax
+
+# "Survey year" sheet
+
+**country** = name of the country (participated exclusively in the sixth wave of the World Values survey; hereafter WVS 6)
+
+Algeria, Ghana, Haiti, India, Kuwait, Palestine, Qatar, Rwanda, South Africa, Trinidad and Tobago, Uzbekistan, Yemen
+
+**year** = year of the end of data WVS 6 collection
+
+2010-2016
+
+# "Country codes" sheet
+
+**country** = name of the country
+
+Albania, Algeria, Andorra, Argentina, Armenia, Australia, Austria, Azerbaijan, Bangladesh, Belarus, Bolivia, Bosnia and Herzegovina, Brazil, Bulgaria, Canada, Chile, China, Colombia, Croatia, Cyprus, Czechia, Denmark, Ecuador, Egypt, Estonia, Ethiopia, Finland, France, Georgia, Germany, Ghana, Great Britain, Greece, Guatemala, Haiti, Hong Kong, Hungary, Iceland, India, Indonesia, Iran, Iraq, Italy, Japan, Jordan, Kazakhstan, Kenya, Kuwait, Kyrgyzstan, Latvia, Lebanon, Libya, Lithuania, Macau SAR, Malaysia, Maldives, Mexico, Mongolia, Montenegro, Morocco, Myanmar, Netherlands, New Zealand, Nicaragua, Nigeria, North Macedonia, Northern Ireland, Norway, Pakistan, Palestine, Peru, Philippines, Poland, Portugal, Puerto Rico, Qatar, Romania, Russia, Rwanda, Serbia, Singapore, Slovakia, Slovenia, South Africa, South Korea, Spain, Sweden, Switzerland, Taiwan, Tajikistan, Thailand, Trinidad and Tobago, Tunisia, Turkey, Ukraine, United States, Uruguay, Uzbekistan, Venezuela, Vietnam, Yemen, Zimbabwe
+
+**code** = NUMISO country code
+
+8, 12, 20, 32, 51, 36, 40, 31, 50, 112, 68, 70, 76, 100, 124, 152, 156, 170, 191, 196, 203, 208, 218, 818, 233, 231, 246, 250, 268, 276, 288, 826, 300, 320, 332, 344, 348, 352, 356, 360, 364, 368, 380, 392, 400, 398, 404, 414, 417, 428, 422, 434, 440, 446, 458, 462, 484, 496, 499, 504, 104, 528, 554, 558, 566, 807, 826, 578, 586, 275, 604, 608, 616, 620, 630, 634, 642, 643, 646, 891, 702, 703, 705, 710, 410, 724, 752, 756, 158, 762, 764, 780, 788, 792, 804, 840, 858, 860, 862, 704, 887, 716 

@@ -1049,6 +1049,7 @@ for (i in 1:length(mlsem_dat)) {
   prepareMplusData(mlsem_dat[[i]], filename = paste0("mlsem_dat", i, ".dat"))
 }
 
+# You can run all models with the following command:
 
 # ===================================================================================================
 

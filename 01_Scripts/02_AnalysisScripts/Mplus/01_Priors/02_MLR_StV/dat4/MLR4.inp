@@ -1,0 +1,65 @@
+TITLE: MLR dat4;
+
+DATA: 
+FILE = "../../../mlsem_dat4.dat";
+
+VARIABLE: 
+NAMES = country imprel confidence belong attend pray person year code survey RCABR
+     RCASIAN RCOTHER COMMALL TAX RRI RLI ZAFRICA ZLA ZINDIC ZSINIC ZNWEST ZISLAM
+     ZORT ZOLDWEST ZREFWEST ZRETWEST;
+USEVARIABLES = country imprel person confidence pray attend belong;
+MISSING = .;
+
+CLUSTER = country;
+CATEGORICAL = imprel person confidence belong;
+
+ANALYSIS: 
+ESTIMATOR = MLR;
+TYPE = TWOLEVEL; 
+LINK = PROBIT;
+
+MODEL: 
+     %WITHIN%
+
+     rel_w BY imprel@1;
+     rel_w BY person*1.15269;
+     rel_w BY confidence*0.65901;
+     rel_w BY pray*0.94565;
+     rel_w BY attend*1.19565;
+     rel_w BY belong*0.87423;
+
+     pray*0.98785;
+     attend*1.94973;
+     rel_w*1.16913;
+
+     %BETWEEN%
+
+     rel_b BY imprel@1;
+     rel_b BY person*0.81118;
+     rel_b BY confidence*0.56920;
+     rel_b BY pray*0.79436;
+     rel_b BY attend*0.93682;
+     rel_b BY belong*0.81968;
+
+     [ pray*3.51753 ];
+     [ attend*3.65999 ];
+
+     [ imprel$1*-1.91909 ];
+     [ imprel$2*-0.63156 ];
+     [ imprel$3*0.63174 ];
+     [ person$1*-0.66720 ];
+     [ confidence$1*-1.48524 ];
+     [ confidence$2*-0.32404 ];
+     [ confidence$3*0.83487 ];
+     [ belong$1*-1.02518 ];
+
+     imprel@0;
+     person@0;
+     confidence@0;
+     belong@0;
+     pray@0;
+     attend@0;
+     rel_b*0.82721;
+
+OUTPUT: 
+SVALUES;

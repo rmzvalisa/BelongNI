@@ -1,0 +1,54 @@
+TITLE: M1 dat1;
+
+DATA: 
+FILE = mlsem_dat1.dat;
+
+VARIABLE: 
+NAMES = country imprel confidence belong attend pray person year code survey RCABR
+     RCASIAN RCOTHER COMMALL TAX RRI RLI ZAFRICA ZLA ZINDIC ZSINIC ZNWEST ZISLAM
+     ZORT ZOLDWEST ZREFWEST ZRETWEST;
+USEVARIABLES = country imprel person confidence pray attend belong 
+     COMMALL;
+MISSING = .;
+
+BETWEEN = COMMALL;
+CLUSTER = country;
+CATEGORICAL = imprel confidence belong person;
+
+ANALYSIS: 
+ESTIMATOR = BAYES;
+PROCESSORS = 2; 
+TYPE = TWOLEVEL RANDOM; 
+THIN = 10;
+FBITERATIONS = 10000;
+
+MODEL: 
+%WITHIN%
+Rel_W BY imprel person confidence pray attend;
+Res1_W BY pray@1 attend@1;
+Res2_W BY imprel@1 confidence@1;
+Res1_W WITH Rel_W@0;
+Res2_W WITH Rel_W@0;
+Res1_W WITH Res2_W@0;
+
+SLOPE | belong ON Rel_W;
+
+%BETWEEN%
+Rel_B BY imprel person confidence pray attend belong;
+Res1_B BY pray@1 attend@1;
+Res2_B BY imprel@1 confidence@1;
+Res1_B WITH Rel_B@0;
+Res2_B WITH Rel_B@0;
+Res1_B WITH Res2_B@0;
+
+SLOPE ON COMMALL;
+belong ON COMMALL;
+
+OUTPUT: 
+TECH8;
+
+PLOT: 
+TYPE = PLOT2;
+
+SAVEDATA:
+BPARAMETERS = parameters.dat;

@@ -1,0 +1,38 @@
+---
+title: "Data Sources"
+author: "Remizova Alisa"
+output: pdf_document
+urlcolor: blue
+---
+
+This is the description of the data employed in the analysis. All corresponding codebooks can be found in the "Codebooks" folder.
+
+# Individual-level data
+## World Values Survey
+The information about sampling and methodology as well as the data are publicly available at the [World Values Survey website](www.worldvaluessurvey.org).
+
+1. World Values Survey, wave 7: Haerpfer, Christian, Ronald Inglehart, Alejandro Moreno, Christian Welzel, Kseniya Kizilova, Jaime Diez-Medrano, Marta Lagos, Pippa Norris, Eduard Ponarin, and Bi Puranen (eds.). 2021. World Values Survey: Round seven - country-pooled datafile version 2.0. Madrid, Spain & Vienna, Austria: JD Systems Institute & WVSA Secretariat. Downloaded July 3, 2021.
+
+2. World Values Survey, wave 7: Haerpfer, Christian, Ronald Inglehart, Alejandro Moreno, Christian Welzel, Kseniya Kizilova, Jaime Diez-Medrano, Marta Lagos, Pippa Norris, Eduard Ponarin, and Bi Puranen (eds.). 2021. World Values Survey: Round seven - country-pooled datafile version 5.0. Madrid, Spain & Vienna, Austria: JD Systems Institute & WVSA Secretariat. Downloaded January 15, 2023.
+
+3. World Values Survey, wave 6: Inglehart, Ronald F., Christian Haerpfer, Alejandro Moreno, Christian Welzel, Kseniya Kizilova, Jaime Diez-Medrano, Marta Lagos, Pippa Norris, Eduard Ponarin, Bi Puranen et al. 2014. World Values Survey: wave Six - country-pooled datafile 2010-2014. JD Systems Institute. Downloaded September 18, 2018.
+
+
+# Country-level data
+## Religious Characteristics of States Dataset Project
+
+The information about methodology and the data are publicly available at the [ARDA website](https://www.thearda.com/data-archive?fid=RCSDEM2) 
+
+Brown, Davis, and Patrick James. 2019. Religious Characteristics of states dataset project - demographics v. 2.0 (RCS-Dem 2.0), countries only.
+
+## Religion and State project: Round 3 
+The information about methodology and the data are publicly available at the [ARDA website](https://www.thearda.com/data-archive?fid=RAS3) 
+
+Fox, Jonathan J. 2019. The religion and state project, main dataset and societal module, round 3.
+
+## Other data sources
+Country-level indicators and survey waves/years ("CountryInfo.xlsx") is the manually created dataset for the current research. The dataset is an excel file with three sheets. The first sheet describes the correspondence between countries participating in the World Values Survey and the cultural zones proposed by Welzel, Christian. 2013. Freedom rising: Human Empowerment and the quest for emancipation. New York: Cambridge University Press. Moreover, countries are classified by communist legacy. 
+
+The second sheet contains information about the year of data collection for countries that participated only in the sixth wave of the World Values Survey. The corresponding information is publicly available at the [World Values Survey website](www.worldvaluessurvey.org).
+
+The third sheet contains information about each country's NUMISO code for further merging with other datasets used in the current research. The corresponding information is publicly available at <https://www.iban.com/country-codes>.

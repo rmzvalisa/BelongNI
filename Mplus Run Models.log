@@ -1,0 +1,13 @@
+------Begin Mplus Model Run: 02May2023 16:05:29------
+Run options:
+	Recursive (run models in subdirectories): TRUE
+	Show output on console: FALSE
+	Replace existing outfile: always
+------
+Currently running model: MLR1.inp
+Currently running model: MLR2.inp
+Currently running model: MLR3.inp
+Currently running model: MLR4.inp
+Currently running model: MLR5.inp
+
+------End Mplus Model Run: 02May2023 18:31:13------
