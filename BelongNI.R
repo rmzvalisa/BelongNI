@@ -1164,7 +1164,8 @@ cont_tab <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
       round(
         mean(x, na.rm = T), 2), " (", round(
           sd(x, na.rm = T), 2), ")"
-    ))
+    )) %>%
+  as.data.frame()
 
 cont_tab <- as.data.frame(cont_tab)
 rownames(cont_tab) <- c("Followers of Abrahamic religions", 
