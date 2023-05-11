@@ -937,7 +937,7 @@ rel_compos <- rel_compos[order(rel_compos$country), ]
 ## ZAFRICA - sub-Saharan Africa
 ## ZINDIC	- Indic East
 ## ZLA - Latin America
-## ZMUSLIM - Islamic East
+## ZISLAM - Islamic East
 ## ZNWEST	- New West
 ## ZOLDWEST	- Old West
 ## ZORT	- Orthodox East
@@ -948,7 +948,7 @@ rel_compos <- rel_compos[order(rel_compos$country), ]
 # Read the data
 zones <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
                     sheet = "Predictors") %>%
-  select(-c(COMMALL, TAX)) %>%
+  select(-c(COMMALL, COMMFORM,	COMMOTHR, TAX)) %>%
   replace(is.na(.), 0)
 
 #----------------------------------------------------------------------------------------
@@ -959,7 +959,7 @@ zones <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belongin
 # Read the data
 communism <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx",
                         sheet = "Predictors") %>%
-  select(c(country, COMMALL)) %>%
+  select(c(country, COMMALL, COMMFORM,	COMMOTHR)) %>%
   replace(is.na(.), 0)
 
 #-----------------------------------------------------------------------------------------------
@@ -1034,7 +1034,7 @@ rm(rel_regulation_WVS6, rel_regulation_WVS_EVS)
 mlsem_dat <- mlsem_dat %>% 
   lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
                             list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER")], 
-                                 communism[, c("country", "COMMALL")], 
+                                 communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
                                  taxes[, c("country", "TAX")], 
                                  rel_regulation[, c("country", "RRI", "RLI")],
                                  zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
