@@ -1030,12 +1030,74 @@ rm(rel_regulation_WVS6, rel_regulation_WVS_EVS)
 
 #-----------------------------------------------------------------------------------------------
 
+# HDI
+
+# No data fo Taiwan
+## retrieved from Directorate General of Budget, Accounting and Statistics, Executive Yuan, Taiwan (ROC)
+## https://www.dgbas.gov.tw/public/Data/112116036FDX2D8F3.pdf
+## HDI = 0.916
+
+# No data for Macau SAR
+## retrieved from Macau Statistics and Census Service https://www.dsec.gov.mo/en-US/
+## https://www.dsec.gov.mo/ts/#!/step2/Latest5Indicator/en-US/19001
+## HDI = 0.922
+
+# No data for Puerto Rico
+## retriewed for 2015 instead of 2018 from 
+## Fuentes-Ramirez, R. (2017) Human Development Index Trends and Inequality in Puerto Rico 2010-2015
+## HDI = 0.845
+## But for merging set the year as 2018
+
+hdi <- read.csv(file = "https://hdr.undp.org/sites/default/files/2021-22_HDR/HDR21-22_Composite_indices_complete_time_series.csv") %>%
+  select(country, paste0("hdi_", 2010:2021)) %>%
+  reshape(direction = "long",
+          varying = c(paste0("hdi_", 2010:2021)),
+          v.names = "HDI",
+          idvar = "country",
+          timevar = "Year",
+          times = 2010:2021) %>%
+  trim() %>%
+  # Set names as in WVS
+  mutate(country = case_when(
+    country == "Bolivia (Plurinational State of)" ~ "Bolivia",
+    country == "Russian Federation" ~ "Russia",
+    country == "Palestine, State of" ~ "Palestine",
+    country == "Korea (Republic of)" ~ "South Korea",
+    country == "Iran (Islamic Republic of)" ~ "Iran",
+    country == "Hong Kong, China (SAR)" ~ "Hong Kong",
+    country == "Viet Nam" ~ "Vietnam",
+    country == "Venezuela (Bolivarian Republic of)" ~ "Venezuela",
+    country == "United Kingdom" ~ "Great Britain",
+    country == "Germany" ~ "Germany East",
+    TRUE ~ country
+  )) %>%
+  rbind(c("Taiwan", "2019", "0.916"), 
+        c("Macau SAR", "2019", "0.922"),
+        c("Puerto Rico", "2018", "0.845")) %>%
+  # Take the 2021 estimates for countries with 2022 year of data collection
+  merge(transform(rel_data[, c("country", "year")], 
+                  Merge_Year = ifelse(year == 2022, 2021, year)),
+        by.x = c("country", "Year"),
+        by.y = c("country", "Merge_Year")) %>%
+  mutate(HDI = as.numeric(HDI)) %>%
+  unique()  %>%
+  select(-Year)
+
+# Duplicate Germany East for Germany West and Great Britain for the Northern Ireland
+hdi <- rbind(hdi, hdi[hdi$country %in% c("Germany East", "Great Britain"), ])
+hdi$country[83] <- "Germany West"
+hdi$country[84] <- "Northern Ireland"
+
+
+#-----------------------------------------------------------------------------------------------
+
 # Merge imputed data with country-level predictors
 mlsem_dat <- mlsem_dat %>% 
   lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
                             list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER")], 
                                  communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
                                  taxes[, c("country", "TAX")], 
+                                 hdi[, c("country", "HDI")], 
                                  rel_regulation[, c("country", "RRI", "RLI")],
                                  zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
                                            "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", "ZRETWEST")])
