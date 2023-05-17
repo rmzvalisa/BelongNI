@@ -1105,6 +1105,17 @@ mlsem_dat <- mlsem_dat %>%
   map(~ mutate(., country = droplevels(country)))
 
 
+# Checking for multicollinearity
+# modelmult <- lm(mlsem_dat[[1]]$imprel ~ 
+#                   mlsem_dat[[1]]$RCASIAN + mlsem_dat[[1]]$RCOTHER + 
+#                   mlsem_dat[[1]]$COMMALL + mlsem_dat[[1]]$TAX + 
+#                   mlsem_dat[[1]]$RRI + mlsem_dat[[1]]$RLI + 
+#                   mlsem_dat[[1]]$HDI) %>%
+#   car::vif()
+# modelmult
+
+
+
 # Save data for MLSEM
 setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus")
 for (i in 1:length(mlsem_dat)) {
@@ -1281,6 +1292,38 @@ kable(bin_tab, row.names = FALSE) %>%
 
 # ----------------------------
 
+# Table ... Correlations of country-level predictors
+
+# correlations of continuous indicators - Pearson
+cont_tab_cor <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
+  select(., c("RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI", "HDI")) %>%
+  cor(., method = "pearson", use = "pairwise.complete.obs")
+
+cont_tab_cor <- as.data.frame(as.table(cont_tab_cor))
+cont_tab_cor <- cont_tab_cor[cont_tab_cor$Freq != 1, ]
+cont_tab_cor <- cont_tab_cor[!duplicated(cont_tab_cor$Freq), ]
+
+cont_tab_cor$Freq <- round(cont_tab_cor$Freq, 2)
+
+colnames(cont_tab_cor) <- c("Indicator1", "Indicator2", "Correlation")
+
+
+# Correlations of continuous indicators with Communism - Spearman
+bin_tab_cor <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
+  select(., c("COMMALL",
+              "RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI", "HDI"))
+
+bin_tab_cor <- round(
+  cor(bin_tab_cor[, 1], bin_tab_cor[, -1], 
+      method = "spearman", use = "pairwise.complete.obs"), 2)
+
+bin_tab_cor <-  as.data.frame(as.table(bin_tab_cor))
+bin_tab_cor <- bin_tab_cor[bin_tab_cor$Freq != 1, ]
+colnames(bin_tab_cor) <- c("Indicator1", "Indicator2", "Correlation")
+bin_tab_cor$Indicator1 <- "COMMALL"
+
+corr_tab <- rbind(cont_tab_cor, bin_tab_cor)
+corr_tab <- trim(corr_tab)
 
 
 
