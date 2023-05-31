@@ -931,6 +931,16 @@ rel_compos <- rel_compos %>%
 rel_compos <- trim(rel_compos)
 rel_compos <- rel_compos[order(rel_compos$country), ] 
 
+# Calculate the percentage of non-religious from religious
+## UNKPC not included - too ambiguous 
+rel_compos <- rel_compos %>%
+  mutate(RCAF = rowSums(select(., RCCHR, RCASIAN, RCMUSLIM,
+                               JEWPC, MANPC, ZORPC, BAHPC, SIKPC, INDPC, NEWPC, OREPC), 
+                        na.rm = TRUE)) %>%
+  mutate(RCSNONAF = NREPC/RCAF*100 # what percent is NREPC from RCAF
+  ) %>%
+  select(-RCAF)
+
 #----------------------------------------------------------------------------------------
 
 # Cultural zones
@@ -1028,6 +1038,7 @@ rel_regulation <- rel_regulation[order(rel_regulation$country), ]
 
 rm(rel_regulation_WVS6, rel_regulation_WVS_EVS)
 
+
 #-----------------------------------------------------------------------------------------------
 
 # HDI
@@ -1094,13 +1105,15 @@ hdi$country[84] <- "Northern Ireland"
 # Merge imputed data with country-level predictors
 mlsem_dat <- mlsem_dat %>% 
   lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
-                            list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER")], 
+                            list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER",
+                                                   "RCSNONAF")], 
                                  communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
                                  taxes[, c("country", "TAX")], 
                                  hdi[, c("country", "HDI")], 
                                  rel_regulation[, c("country", "RRI", "RLI")],
                                  zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
-                                           "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", "ZRETWEST")])
+                                           "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", 
+                                           "ZRETWEST")])
   )) %>% 
   map(~ mutate(., country = droplevels(country)))
 
@@ -1124,6 +1137,10 @@ for (i in 1:length(mlsem_dat)) {
 
 # You can run all models with the following command:
 runmodels()
+
+# You can check the traceplots with the following command:
+traceplots_mplus("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/02_Results/M2/dat1/M2_1.gh5",
+                 is.file = T)
 
 # ===================================================================================================
 
@@ -1294,9 +1311,9 @@ kable(bin_tab, row.names = FALSE) %>%
 
 # Table ... Correlations of country-level predictors
 
-# correlations of continuous indicators - Pearson
+# Correlations of continuous indicators - Pearson
 cont_tab_cor <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
-  select(., c("RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI", "HDI")) %>%
+  select(., c("RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI")) %>%
   cor(., method = "pearson", use = "pairwise.complete.obs")
 
 cont_tab_cor <- as.data.frame(as.table(cont_tab_cor))
@@ -1311,7 +1328,7 @@ colnames(cont_tab_cor) <- c("Indicator1", "Indicator2", "Correlation")
 # Correlations of continuous indicators with Communism - Spearman
 bin_tab_cor <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
   select(., c("COMMALL",
-              "RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI", "HDI"))
+              "RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI"))
 
 bin_tab_cor <- round(
   cor(bin_tab_cor[, 1], bin_tab_cor[, -1], 
