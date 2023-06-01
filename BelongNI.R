@@ -937,7 +937,7 @@ rel_compos <- rel_compos %>%
   mutate(RCAF = rowSums(select(., RCCHR, RCASIAN, RCMUSLIM,
                                JEWPC, MANPC, ZORPC, BAHPC, SIKPC, INDPC, NEWPC, OREPC), 
                         na.rm = TRUE)) %>%
-  mutate(RCSNONAF = NREPC/RCAF*100 # what percent is NREPC from RCAF
+  mutate(RCNONAF = NREPC/RCAF*100 # what percent is NREPC from RCAF
   ) %>%
   select(-RCAF)
 
@@ -1038,7 +1038,6 @@ rel_regulation <- rel_regulation[order(rel_regulation$country), ]
 
 rm(rel_regulation_WVS6, rel_regulation_WVS_EVS)
 
-
 #-----------------------------------------------------------------------------------------------
 
 # HDI
@@ -1099,6 +1098,8 @@ hdi <- rbind(hdi, hdi[hdi$country %in% c("Germany East", "Great Britain"), ])
 hdi$country[83] <- "Germany West"
 hdi$country[84] <- "Northern Ireland"
 
+# Rename hdi for furhter merging
+names(hdi)[3] <- "Year"
 
 #-----------------------------------------------------------------------------------------------
 
@@ -1106,7 +1107,7 @@ hdi$country[84] <- "Northern Ireland"
 mlsem_dat <- mlsem_dat %>% 
   lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
                             list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER",
-                                                   "RCSNONAF")], 
+                                                   "RCNONAF")], 
                                  communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
                                  taxes[, c("country", "TAX")], 
                                  hdi[, c("country", "HDI")], 
@@ -1135,12 +1136,18 @@ for (i in 1:length(mlsem_dat)) {
   prepareMplusData(mlsem_dat[[i]], filename = paste0("mlsem_dat", i, ".dat"))
 }
 
+prepareMplusData(mlsem_dat[[1]], filename = "mlsem_dat1.dat")
+
 # You can run all models with the following command:
 runmodels()
 
 # You can check the traceplots with the following command:
 traceplots_mplus("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/02_Results/M2/dat1/M2_1.gh5",
                  is.file = T)
+
+
+runModels("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/NONAF",
+          recursive = T)
 
 # ===================================================================================================
 
@@ -1214,11 +1221,13 @@ df_to_viewer(
 tab_predict <- Reduce(function(x, y) 
   merge(x, y, all = F), 
   list(zones[, c("country", "Zone")], 
-       communism[, c("country", "COMMALL")],
+       communism[, c("country", "COMMFORM",	"COMMOTHR")],
        taxes[, c("country", "TAX")],
+       hdi[, c("country", "HDI", "Year")],
        rel_regulation[, c("country", "RRI", "RLI", "year")]))
 
-colnames(tab_predict) <- c("Country", "Zone", "Communist", "Tax", "RRI", "RLI", "Year")
+colnames(tab_predict) <- c("Country", "Zone", "Former Communist", "Other Communist", 
+                           "Tax", "HDI", "Year", "RRI", "RLI", "Year")
 
 # Recode the name of predictors to full and more intuitive ones
 tab_predict$Zone[tab_predict$Zone == "ZAFRICA"] <- "Sub-Saharan Africa"
@@ -1233,8 +1242,13 @@ tab_predict$Zone[tab_predict$Zone == "ZREFWEST"] <- "Reformed West"
 tab_predict$Zone[tab_predict$Zone == "ZORT"] <- "Orthodox East"
 
 # Set "+" for (ex-)communist countries
-tab_predict$Communist <- ifelse(
-  tab_predict$Communist == 1, "+", 
+tab_predict$`Former Communist` <- ifelse(
+  tab_predict$`Former Communist` == 1, "+", 
+  ""
+)
+
+tab_predict$`Other Communist` <- ifelse(
+  tab_predict$`Other Communist` == 1, "+", 
   ""
 )
 
@@ -1250,7 +1264,7 @@ df_to_viewer(tab_predict, rownames = F)
 
 # Table ... Mean (sd) for continuous country-level predictors
 cont_tab <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
-  select(., c("RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI")) %>%
+  select(., c("RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI", "HDI")) %>%
   sapply(., function(x)
     paste0(
       round(
@@ -1262,7 +1276,7 @@ cont_tab <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
 cont_tab <- as.data.frame(cont_tab)
 rownames(cont_tab) <- c("Followers of Abrahamic religions", 
                         "Followers of Asian religions", "Others", 
-                        "RRI", "RLI")
+                         "RRI", "RLI", "HDI")
 cont_tab <- cbind(rownames(cont_tab), cont_tab)
 
 colnames(cont_tab) <- c("Predictor", "Mean (SD)")
@@ -1270,6 +1284,7 @@ colnames(cont_tab) <- c("Predictor", "Mean (SD)")
 kable(cont_tab, row.names = FALSE) %>%
   group_rows("Religious composition", 1, 3) %>%
   group_rows("Regulation of religion", 4, 5) %>%
+  group_rows("HDI", 6, 6) %>%
   footnote(
     general = "Followers of Abrahamic religions = the sum percentage of Christians and Muslims;
     Others = the sum percentage of not religious, individuals with unknown classification, 
@@ -1280,11 +1295,11 @@ kable(cont_tab, row.names = FALSE) %>%
 
 # ----------------------------
 
-# Table ... Number (share) of countries for binary country-level predictors
+# Table ... Number (percentage) of countries for binary country-level predictors
 bin_tab <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
   select(., c("ZAFRICA", "ZLA", "ZINDIC", "ZSINIC", "ZISLAM", "ZNWEST", 
               "ZORT", "ZOLDWEST", "ZRETWEST", "ZREFWEST",
-              "COMMALL", "TAX")) %>%
+              "COMMFORM",	"COMMOTHR", "TAX")) %>%
   sapply(., function(x)
     paste0(length(which(x==1)), " (", 
            round(
@@ -1313,7 +1328,7 @@ kable(bin_tab, row.names = FALSE) %>%
 
 # Correlations of continuous indicators - Pearson
 cont_tab_cor <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
-  select(., c("RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI")) %>%
+  select(., c("RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI", "HDI")) %>%
   cor(., method = "pearson", use = "pairwise.complete.obs")
 
 cont_tab_cor <- as.data.frame(as.table(cont_tab_cor))
