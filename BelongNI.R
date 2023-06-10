@@ -1014,6 +1014,30 @@ rel_regulation <- rands_data %>%
           sep = "",
           v.names = c("NXX", "LXX"))
 
+# OR
+
+# Select variables
+rel_regulation <- rands_data %>%
+  select(c(COUNTRY, NUMISO,
+           NXX2010, NXX2011, NXX2012, NXX2013, NXX2014,
+           LXX2010, LXX2011, LXX2012, LXX2013, LXX2014,
+           LX31X2010, LX31X2011, LX31X2012, LX31X2013, LX31X2014)) %>% 
+  
+  # Change country code for Yugoslavia, as Serbia
+  mutate(NUMISO = ifelse(NUMISO == "688", "891", NUMISO)) %>% 
+  
+  # Reshape data to the long format
+  reshape(direction = "long",
+          varying = list(NXX = c("NXX2010", "NXX2011", "NXX2012", "NXX2013", "NXX2014"),
+                         LXX = c("LXX2010", "LXX2011", "LXX2012", "LXX2013", "LXX2014"),
+                         TAX = c("LX31X2010", "LX31X2011", "LX31X2012", "LX31X2013", "LX31X2014")),
+          timevar = c("year"),
+          times = c("2010", "2011", "2012", "2013", "2014"),
+          idvar = "COUNTRY",
+          sep = "",
+          v.names = c("NXX", "LXX", "TAX"))
+
+
 # Subset WVS/EVS countries and the most recent available 2014 year
 rel_regulation_WVS_EVS <- rel_regulation %>%
   filter(NUMISO %in% WVS7_EVS5$code, year == 2014)
@@ -1037,6 +1061,9 @@ rel_regulation <- trim(rel_regulation)
 rel_regulation <- rel_regulation[order(rel_regulation$country), ]
 
 rm(rel_regulation_WVS6, rel_regulation_WVS_EVS)
+
+# Tax: Austria, Denmark, Finland, Germany East, Germany West, Hungary, Iceland, Italy, 
+## Malaysia, Portugal, Slovakia, Slovenia, Spain, Sweden, and Switzerland
 
 #-----------------------------------------------------------------------------------------------
 
@@ -1342,11 +1369,11 @@ colnames(cont_tab_cor) <- c("Indicator1", "Indicator2", "Correlation")
 
 # Correlations of continuous indicators with Communism - Spearman
 bin_tab_cor <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
-  select(., c("COMMALL",
+  select(., c("COMMFORM",	"COMMOTHR",
               "RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI"))
 
 bin_tab_cor <- round(
-  cor(bin_tab_cor[, 1], bin_tab_cor[, -1], 
+  cor(bin_tab_cor[, 1:2], bin_tab_cor[, -1], 
       method = "spearman", use = "pairwise.complete.obs"), 2)
 
 bin_tab_cor <-  as.data.frame(as.table(bin_tab_cor))
