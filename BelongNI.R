@@ -1370,7 +1370,8 @@ colnames(bin_tab) <- c("Predictor", "Number (share)")
 
 kable(bin_tab, row.names = FALSE) %>%
   footnote(
-    general = "The descriptive statistics were computed for the sample of 50 countries."
+    general = "Taxes = countries with mandatory religious taxes. 
+    The descriptive statistics were computed for the sample of 50 countries."
   )
 
 
@@ -1379,35 +1380,90 @@ kable(bin_tab, row.names = FALSE) %>%
 # Table ... Correlations of country-level predictors
 
 # Correlations of continuous indicators - Pearson
-cont_tab_cor <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
+cont_tab_cor <-  mlsem_dat[[1]] %>%
+  distinct(country, .keep_all = TRUE) %>%
   select(., c("RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI", "HDI")) %>%
-  cor(., method = "pearson", use = "pairwise.complete.obs")
+  cor(., method = "pearson", use = "pairwise.complete.obs") %>%
+  sna::diag.remove(., remove.val = NA) # Delete invalid pairs
 
-cont_tab_cor <- as.data.frame(as.table(cont_tab_cor))
-cont_tab_cor <- cont_tab_cor[cont_tab_cor$Freq != 1, ]
-cont_tab_cor <- cont_tab_cor[!duplicated(cont_tab_cor$Freq), ]
-
-cont_tab_cor$Freq <- round(cont_tab_cor$Freq, 2)
-
-colnames(cont_tab_cor) <- c("Indicator1", "Indicator2", "Correlation")
-
+cont_tab_cor <- as.data.frame(as.table(cont_tab_cor)) %>%
+  na.omit(.) %>% # Delete NAs
+  distinct(Freq, .keep_all = TRUE) %>% # Delete duplicates
+  mutate(Freq = round(Freq, 2)) %>%
+  rename(Indicator1 = Var1, Indicator2 = Var2, Correlation = Freq)
+  
 
 # Correlations of continuous indicators with Communism - Spearman
-bin_tab_cor <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
+bin_tab_cor <-  mlsem_dat[[1]] %>%
+  distinct(country, .keep_all = TRUE) %>%
   select(., c("COMMFORM",	"COMMOTHR",
-              "RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI"))
+              "RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI", "HDI"))
 
-bin_tab_cor <- round(
-  cor(bin_tab_cor[, 1:2], bin_tab_cor[, -1], 
-      method = "spearman", use = "pairwise.complete.obs"), 2)
+bin_tab_cor <- cor(bin_tab_cor[, 1:2], bin_tab_cor[, -1], 
+                   method = "spearman", use = "pairwise.complete.obs")
 
-bin_tab_cor <-  as.data.frame(as.table(bin_tab_cor))
-bin_tab_cor <- bin_tab_cor[bin_tab_cor$Freq != 1, ]
-colnames(bin_tab_cor) <- c("Indicator1", "Indicator2", "Correlation")
-bin_tab_cor$Indicator1 <- "COMMALL"
+bin_tab_cor <-  as.data.frame(as.table(bin_tab_cor)) %>%
+  na.omit(.) %>% # Delete NAs
+  distinct(Freq, .keep_all = TRUE) %>% # Delete duplicates
+  filter(Freq != 1) %>%
+  mutate(Freq = round(Freq, 2)) %>%
+  rename(Indicator1 = Var1, Indicator2 = Var2, Correlation = Freq)
 
 corr_tab <- rbind(cont_tab_cor, bin_tab_cor)
 corr_tab <- trim(corr_tab)
 
+corr_tab <- corr_tab %>%
+  mutate(Indicator1 = fct_recode(Indicator1, "Former Communist" = "COMMFORM",
+                                 "Other Communist" = "COMMOTHR",
+                                 "Followers of Abrahamic religions" = "RCABR",
+                                 "Followers of Asian religions" = "RCASIAN",
+                                 "Others" = "RCOTHER")) %>%
+  mutate(Indicator2 = fct_recode(Indicator2, "Other Communist" = "COMMOTHR",
+                                 "Followers of Abrahamic religions" = "RCABR",
+                                 "Followers of Asian religions" = "RCASIAN",
+                                 "Others" = "RCOTHER"))
 
+kable(corr_tab, row.names = FALSE) %>%
+  footnote(
+    general = "Followers of Abrahamic religions = the sum percentage of Christians and Muslims; 
+    Others = the sum percentage of not religious, individuals with unknown classification, and 
+    the followers of all “other” religions: Jews, Mandaeans, Zoroastrians, Bahais, Sikhs, 
+    indigenous religionists (Ethnoreligionists), New Age religionists, and other religionists.
+    Correlations were computed for the sample of 50 countries. 
+    Pearson correlations were calculated for all pairs of predictors except those with 
+    Communist groups, for which Spearman correlations were used."
+  )
 
+rm(cont_tab_cor, bin_tab_cor)
+
+# ----------------------------
+# Table ... Means of parameters in normal priors for Bayesian MLSEM
+
+# Retrieve priors for thresholds of the two categorical indicators
+priors <- readModels(
+  target = "/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/01_Priors/02_MLR_StV", 
+  recursive = TRUE, what = "parameters"
+) %>%
+  
+  # Select estimates only for thresholds
+  map(~ {
+    x <- .x$parameters$unstandardized
+    x <- subset(x, param %in% 
+                  c("IMPREL$1", "IMPREL$2", "IMPREL$3", "CONFIDEN$1", "CONFIDEN$2", "CONFIDEN$3"), 
+                select = c("param", "est"))
+    as.data.frame(x)
+  }) %>%
+  setNames(1:length(.)) %>%
+  
+  # Merge datasets to a single table
+  reduce(function(x, y) merge(x, y, by = "param", all = TRUE)) %>%
+  setNames(c("Parameter", "Data 1", "Data 2", "Data 3", "Data 4", "Data 5")) %>%
+  mutate(Parameter = fct_recode(as.factor(Parameter),
+                            'Confidence in institutions - t1' = 'CONFIDEN$1',
+                            'Confidence in institutions - t2' = 'CONFIDEN$2',
+                            'Confidence in institutions - t3' = 'CONFIDEN$3',
+                            'Importance of religion - t1' = 'IMPREL$1',
+                            'Importance of religion - t2' = 'IMPREL$2',
+                            'Importance of religion - t3' = 'IMPREL$3'))
+
+df_to_viewer(priors, rownames = F, digits = 3)
