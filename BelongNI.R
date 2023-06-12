@@ -1062,8 +1062,15 @@ rel_regulation <- rel_regulation[order(rel_regulation$country), ]
 
 rm(rel_regulation_WVS6, rel_regulation_WVS_EVS)
 
+# lx31: Government collects taxes on behalf of religious organizations (religious
+## taxes).
 # Tax: Austria, Denmark, Finland, Germany East, Germany West, Hungary, Iceland, Italy, 
 ## Malaysia, Portugal, Slovakia, Slovenia, Spain, Sweden, and Switzerland
+
+# Slovakia and Slovenia - no taxes??
+
+names(rel_regulation)[5] <- "TAXALL"
+rel_regulation$TAXALL <-ifelse(rel_regulation$TAXALL == "Yes", 1, 0)
 
 #-----------------------------------------------------------------------------------------------
 
@@ -1146,6 +1153,24 @@ mlsem_dat <- mlsem_dat %>%
   map(~ mutate(., country = droplevels(country)))
 
 
+# OR
+
+mlsem_dat <- mlsem_dat %>% 
+  lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
+                            list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER",
+                                                   "RCNONAF")], 
+                                 communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
+                                 taxes[, c("country", "TAX")], 
+                                 hdi[, c("country", "HDI")], 
+                                 rel_regulation[, c("country", "RRI", "RLI", "TAXALL")],
+                                 zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
+                                           "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", 
+                                           "ZRETWEST")])
+  )) %>% 
+  map(~ mutate(., country = droplevels(country)))
+
+
+
 # Checking for multicollinearity
 # modelmult <- lm(mlsem_dat[[1]]$imprel ~ 
 #                   mlsem_dat[[1]]$RCASIAN + mlsem_dat[[1]]$RCOTHER + 
@@ -1156,13 +1181,13 @@ mlsem_dat <- mlsem_dat %>%
 # modelmult
 
 
-
 # Save data for MLSEM
 setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus")
 for (i in 1:length(mlsem_dat)) {
   prepareMplusData(mlsem_dat[[i]], filename = paste0("mlsem_dat", i, ".dat"))
 }
 
+setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/untitled folder 2/RI_M1_TAXALL/dat1")
 prepareMplusData(mlsem_dat[[1]], filename = "mlsem_dat1.dat")
 
 # You can run all models with the following command:
@@ -1173,7 +1198,7 @@ traceplots_mplus("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/B
                  is.file = T)
 
 
-runModels("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/NONAF",
+runModels("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/untitled folder",
           recursive = T)
 
 # ===================================================================================================
