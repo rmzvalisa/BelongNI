@@ -6,7 +6,7 @@ lapply(c("car", "foreign", "haven", "dplyr", "mice", "LittleHelpers", "MplusAuto
        require, character.only = TRUE)  
 
 # Upload two functions written for the current analysis
-source("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/AddFunctionsBelong.R")
+source("./01_Scripts/02_AnalysisScripts/AddFunctionsBelong.R")
 
 # WVS 7 + EVS 5
 
@@ -40,7 +40,7 @@ source("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01
 ## year - survey year
 
 # Read country codes
-codes <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
+codes <- read_excel("./02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
                     sheet = "Country codes")
 
 # Read data, set the same country names in WVS7 as in WVS6, and merge with country codes
@@ -135,7 +135,7 @@ levels(rel_data$country)
 ## from No formal education to University - level education, with degree 
 
 # Read the survey year
-WVS6_year <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
+WVS6_year <- read_excel("./02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
                         sheet = "Survey year")
 
 # Read the data and merge with country codes and survey year
@@ -730,9 +730,8 @@ imp_data <- imp_data[base::order(names(imp_data))]
 # 84 countries
 
 # save or download the imputed dataset 
-## setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/02_AnalysisData")
 ## save(imp_data, file = "imp_data_WVS_EVS.RData")
-## load("imp_data_WVS_EVS.RData")
+## load("./02_Data/02_AnalysisData/imp_data_WVS_EVS.RData")
 
 ## lapply(imp_data, function(x)
 ##  lapply(x, function(y)
@@ -899,17 +898,32 @@ rel_compos <- subset(rel_compos, subset = rel_compos$code %in% rel_data$code)
 # ----------------------------
 
 # Calculate final country-level predictors
+# rel_compos <- rel_compos %>%
+#   mutate(RCCHR = rowSums(select(., CHRPC, CSYNPC), na.rm = TRUE), # Christians
+#          RCASIAN = rowSums(select(., SHNPC, CNFPC, TAOPC, CHFPC, JAIPC, 
+#                                   HINPC, BUDPC, BSYNPC), na.rm = TRUE), # Asian Religions
+#          RCMUSLIM = rowSums(select(., MUSPC, MSYNPC), na.rm = TRUE), # Muslims
+#          RCOTHER = rowSums(select(., NREPC, UNKPC,
+#                                     JEWPC, MANPC, ZORPC, BAHPC, SIKPC, INDPC, NEWPC, OREPC), 
+#                              na.rm = TRUE) # All other categories
+#   )  %>%
+#   mutate(RCABR = rowSums(select(., RCCHR, RCMUSLIM), na.rm = TRUE) # Abrahamic religions
+#          )
+
+## RCOTHER without NREPC
 rel_compos <- rel_compos %>%
   mutate(RCCHR = rowSums(select(., CHRPC, CSYNPC), na.rm = TRUE), # Christians
          RCASIAN = rowSums(select(., SHNPC, CNFPC, TAOPC, CHFPC, JAIPC, 
                                   HINPC, BUDPC, BSYNPC), na.rm = TRUE), # Asian Religions
          RCMUSLIM = rowSums(select(., MUSPC, MSYNPC), na.rm = TRUE), # Muslims
-         RCOTHER = rowSums(select(., NREPC, UNKPC,
-                                    JEWPC, MANPC, ZORPC, BAHPC, SIKPC, INDPC, NEWPC, OREPC), 
-                             na.rm = TRUE) # All other categories
+         RCOTHER = rowSums(select(., UNKPC,
+                                  JEWPC, MANPC, ZORPC, BAHPC, SIKPC, INDPC, NEWPC, OREPC), 
+                           na.rm = TRUE) # All other categories except NREPC
   )  %>%
   mutate(RCABR = rowSums(select(., RCCHR, RCMUSLIM), na.rm = TRUE) # Abrahamic religions
-         )
+  ) %>%
+  rename(RCNREL = NREPC)
+
 
 # Add country names and Northern Ireland with two samples for Germany
 rel_compos <- rel_compos %>% 
@@ -917,29 +931,28 @@ rel_compos <- rel_compos %>%
   distinct(country, .keep_all = TRUE)
 
 # Calculate the total percentage to see the discrepancy in estimates
-## rel_compos$SUM <- rowSums(rel_compos[,c("RCABR", "RCASIAN", "RCOTHER")], na.rm = T)
+## rel_compos$SUM <- rowSums(rel_compos[,c("RCABR", "RCASIAN", "RCOTHER", "RCNREL")], na.rm = T)
 ## df_to_viewer(rel_compos[, c("country", "SUM")], rownames = F)
 
 # Adjust the variables in South Korea and Netherlands:
 ## the total percentage of adherents of all religions is a bit > 100%
 ## -> subtract the extra % from all categories proportionally to the number of these categories
+# rel_compos <- rel_compos %>%
+#  mutate(SUM = rowSums(.[c("RCABR", "RCASIAN", "RCOTHER")], na.rm = TRUE)) %>%
+#  mutate(DIF = if_else(country %in% c("South Korea", "Netherlands"), (SUM - 100)/3, 0)) %>%
+#  mutate_at(vars(RCABR, RCASIAN, RCOTHER), ~ if_else(country %in% c("South Korea", "Netherlands"), . - DIF, .))
+
+
+# Because RCOTHER is too small in the Netherlands, drop it
 rel_compos <- rel_compos %>%
-  mutate(SUM = rowSums(.[c("RCABR", "RCASIAN", "RCOTHER")], na.rm = TRUE)) %>%
-  mutate(DIF = if_else(country %in% c("South Korea", "Netherlands"), (SUM - 100)/3, 0)) %>%
-  mutate_at(vars(RCABR, RCASIAN, RCOTHER), ~ if_else(country %in% c("South Korea", "Netherlands"), . - DIF, .))
+  mutate(SUM = rowSums(.[c("RCABR", "RCASIAN", "RCNREL", "RCOTHER")], na.rm = TRUE)) %>%
+  mutate(DIF = if_else(country %in% c("South Korea"), (SUM - 100)/4, 0)) %>%
+  mutate(DIF1 = if_else(country %in% c("Netherlands"), (SUM - 100)/3, 0)) %>%
+  mutate_at(vars(RCABR, RCASIAN, RCNREL, RCOTHER), ~ if_else(country %in% c("South Korea"), . - DIF, .)) %>%
+  mutate_at(vars(RCABR, RCASIAN, RCNREL), ~ if_else(country %in% c("Netherlands"), . - DIF1, .))
 
 rel_compos <- trim(rel_compos)
 rel_compos <- rel_compos[order(rel_compos$country), ] 
-
-# Calculate the percentage of non-religious from religious
-## UNKPC not included - too ambiguous 
-rel_compos <- rel_compos %>%
-  mutate(RCAF = rowSums(select(., RCCHR, RCASIAN, RCMUSLIM,
-                               JEWPC, MANPC, ZORPC, BAHPC, SIKPC, INDPC, NEWPC, OREPC), 
-                        na.rm = TRUE)) %>%
-  mutate(RCNONAF = NREPC/RCAF*100 # what percent is NREPC from RCAF
-  ) %>%
-  select(-RCAF)
 
 #----------------------------------------------------------------------------------------
 
@@ -956,7 +969,7 @@ rel_compos <- rel_compos %>%
 ## ZSINIC	- Sinic East
 
 # Read the data
-zones <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
+zones <- read_excel("./02_Data/01_InputData/CountryInfoWVS_EVS.xlsx", 
                     sheet = "Predictors") %>%
   select(-c(COMMALL, COMMFORM,	COMMOTHR, TAX)) %>%
   replace(is.na(.), 0)
@@ -1135,7 +1148,9 @@ hdi$country[84] <- "Northern Ireland"
 # Rename hdi for furhter merging
 names(hdi)[3] <- "Year"
 
+
 #-----------------------------------------------------------------------------------------------
+
 
 # Merge imputed data with country-level predictors
 mlsem_dat <- mlsem_dat %>% 
@@ -1169,6 +1184,41 @@ mlsem_dat <- mlsem_dat %>%
   )) %>% 
   map(~ mutate(., country = droplevels(country)))
 
+# OR
+
+mlsem_dat <- mlsem_dat %>% 
+  lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
+                            list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER",
+                                                   "NREPC")], 
+                                 communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
+                                 taxes[, c("country", "TAX")], 
+                                 hdi[, c("country", "HDI")], 
+                                 rel_regulation[, c("country", "RRI", "RLI", "TAXALL")],
+                                 zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
+                                           "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", 
+                                           "ZRETWEST")])
+  )) %>% 
+  map(~ mutate(., country = droplevels(country)))
+
+
+# OR
+
+mlsem_dat <- mlsem_dat %>% 
+  lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
+                            list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER",
+                                                   "NREPC", "RCNONAF")], 
+                                 communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
+                                 taxes[, c("country", "TAX")], 
+                                 hdi[, c("country", "HDI")], 
+                                 rel_regulation[, c("country", "RRI", "RLI", "TAXALL")],
+                                 zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
+                                           "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", 
+                                           "ZRETWEST", "ASIANBIN")])
+  )) %>% 
+  map(~ mutate(., country = droplevels(country)))
+
+
+
 
 
 # Checking for multicollinearity
@@ -1187,7 +1237,7 @@ for (i in 1:length(mlsem_dat)) {
   prepareMplusData(mlsem_dat[[i]], filename = paste0("mlsem_dat", i, ".dat"))
 }
 
-setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/untitled folder 2/RI_M1_TAXALL/dat1")
+setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/untitled folder 3/RI_M1_RCSEP_NEW/dat1")
 prepareMplusData(mlsem_dat[[1]], filename = "mlsem_dat1.dat")
 
 # You can run all models with the following command:
@@ -1198,7 +1248,7 @@ traceplots_mplus("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/B
                  is.file = T)
 
 
-runModels("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/untitled folder",
+runModels("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/untitled folder 3",
           recursive = T)
 
 # ===================================================================================================
