@@ -980,7 +980,7 @@ zones <- read_excel("./02_Data/01_InputData/CountryInfoWVS_EVS.xlsx",
 ## COMMALL - all countries that experienced/experience the communist regime
 
 # Read the data
-communism <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx",
+communism <- read_excel("./02_Data/01_InputData/CountryInfoWVS_EVS.xlsx",
                         sheet = "Predictors") %>%
   select(c(country, COMMALL, COMMFORM,	COMMOTHR)) %>%
   replace(is.na(.), 0)
@@ -990,7 +990,7 @@ communism <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belo
 # Religious taxes
 
 # Read the data
-taxes <- read_excel("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/02_Data/01_InputData/CountryInfoWVS_EVS.xlsx",
+taxes <- read_excel("./02_Data/01_InputData/CountryInfoWVS_EVS.xlsx",
                     sheet = "Predictors") %>%
   select(c(country, TAX)) %>%
   replace(is.na(.), 0)
@@ -1028,27 +1028,26 @@ rel_regulation <- rands_data %>%
           v.names = c("NXX", "LXX"))
 
 # OR
-
 # Select variables
-rel_regulation <- rands_data %>%
-  select(c(COUNTRY, NUMISO,
-           NXX2010, NXX2011, NXX2012, NXX2013, NXX2014,
-           LXX2010, LXX2011, LXX2012, LXX2013, LXX2014,
-           LX31X2010, LX31X2011, LX31X2012, LX31X2013, LX31X2014)) %>% 
-  
-  # Change country code for Yugoslavia, as Serbia
-  mutate(NUMISO = ifelse(NUMISO == "688", "891", NUMISO)) %>% 
-  
-  # Reshape data to the long format
-  reshape(direction = "long",
-          varying = list(NXX = c("NXX2010", "NXX2011", "NXX2012", "NXX2013", "NXX2014"),
-                         LXX = c("LXX2010", "LXX2011", "LXX2012", "LXX2013", "LXX2014"),
-                         TAX = c("LX31X2010", "LX31X2011", "LX31X2012", "LX31X2013", "LX31X2014")),
-          timevar = c("year"),
-          times = c("2010", "2011", "2012", "2013", "2014"),
-          idvar = "COUNTRY",
-          sep = "",
-          v.names = c("NXX", "LXX", "TAX"))
+# rel_regulation <- rands_data %>%
+#  select(c(COUNTRY, NUMISO,
+#          NXX2010, NXX2011, NXX2012, NXX2013, NXX2014,
+#           LXX2010, LXX2011, LXX2012, LXX2013, LXX2014,
+#           LX31X2010, LX31X2011, LX31X2012, LX31X2013, LX31X2014)) %>% 
+#  
+#  # Change country code for Yugoslavia, as Serbia
+#  mutate(NUMISO = ifelse(NUMISO == "688", "891", NUMISO)) %>% 
+#  
+#  # Reshape data to the long format
+#  reshape(direction = "long",
+#          varying = list(NXX = c("NXX2010", "NXX2011", "NXX2012", "NXX2013", "NXX2014"),
+#                         LXX = c("LXX2010", "LXX2011", "LXX2012", "LXX2013", "LXX2014"),
+#                         TAX = c("LX31X2010", "LX31X2011", "LX31X2012", "LX31X2013", "LX31X2014")),
+#          timevar = c("year"),
+#          times = c("2010", "2011", "2012", "2013", "2014"),
+#          idvar = "COUNTRY",
+#          sep = "",
+#          v.names = c("NXX", "LXX", "TAX"))
 
 
 # Subset WVS/EVS countries and the most recent available 2014 year
@@ -1057,7 +1056,8 @@ rel_regulation_WVS_EVS <- rel_regulation %>%
 
 # Subset WVS 6 countries and the year corresponding to the data collection year
 rel_regulation_WVS6 <- rel_regulation  %>%
-  merge(rel_data_WVS6[, c("code", "year")], by.x = c("NUMISO", "year"), by.y = c("code", "year")) %>%
+  merge(rel_data_WVS6[, c("code", "year")], by.x = c("NUMISO", "year"), 
+        by.y = c("code", "year")) %>%
   distinct(COUNTRY, .keep_all = TRUE)
 
 # Set the same order of columns in WVS_EVS as in WVS6
@@ -1075,15 +1075,15 @@ rel_regulation <- rel_regulation[order(rel_regulation$country), ]
 
 rm(rel_regulation_WVS6, rel_regulation_WVS_EVS)
 
+
 # lx31: Government collects taxes on behalf of religious organizations (religious
 ## taxes).
 # Tax: Austria, Denmark, Finland, Germany East, Germany West, Hungary, Iceland, Italy, 
 ## Malaysia, Portugal, Slovakia, Slovenia, Spain, Sweden, and Switzerland
-
 # Slovakia and Slovenia - no taxes??
 
-names(rel_regulation)[5] <- "TAXALL"
-rel_regulation$TAXALL <-ifelse(rel_regulation$TAXALL == "Yes", 1, 0)
+# names(rel_regulation)[5] <- "TAXALL"
+# rel_regulation$TAXALL <-ifelse(rel_regulation$TAXALL == "Yes", 1, 0)
 
 #-----------------------------------------------------------------------------------------------
 
@@ -1151,12 +1151,11 @@ names(hdi)[3] <- "Year"
 
 #-----------------------------------------------------------------------------------------------
 
-
 # Merge imputed data with country-level predictors
 mlsem_dat <- mlsem_dat %>% 
   lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
                             list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER",
-                                                   "RCNONAF")], 
+                                                   "RCNREL")], 
                                  communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
                                  taxes[, c("country", "TAX")], 
                                  hdi[, c("country", "HDI")], 
@@ -1167,89 +1166,29 @@ mlsem_dat <- mlsem_dat %>%
   )) %>% 
   map(~ mutate(., country = droplevels(country)))
 
-
-# OR
-
-mlsem_dat <- mlsem_dat %>% 
-  lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
-                            list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER",
-                                                   "RCNONAF")], 
-                                 communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
-                                 taxes[, c("country", "TAX")], 
-                                 hdi[, c("country", "HDI")], 
-                                 rel_regulation[, c("country", "RRI", "RLI", "TAXALL")],
-                                 zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
-                                           "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", 
-                                           "ZRETWEST")])
-  )) %>% 
-  map(~ mutate(., country = droplevels(country)))
-
-# OR
-
-mlsem_dat <- mlsem_dat %>% 
-  lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
-                            list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER",
-                                                   "NREPC")], 
-                                 communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
-                                 taxes[, c("country", "TAX")], 
-                                 hdi[, c("country", "HDI")], 
-                                 rel_regulation[, c("country", "RRI", "RLI", "TAXALL")],
-                                 zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
-                                           "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", 
-                                           "ZRETWEST")])
-  )) %>% 
-  map(~ mutate(., country = droplevels(country)))
-
-
-# OR
-
-mlsem_dat <- mlsem_dat %>% 
-  lapply(function(y) Reduce(function(x, z) merge(x, z, by = "country", all.x = FALSE),
-                            list(y, rel_compos[, c("country", "RCABR", "RCASIAN", "RCOTHER",
-                                                   "NREPC", "RCNONAF")], 
-                                 communism[, c("country", "COMMALL", "COMMFORM",	"COMMOTHR")], 
-                                 taxes[, c("country", "TAX")], 
-                                 hdi[, c("country", "HDI")], 
-                                 rel_regulation[, c("country", "RRI", "RLI", "TAXALL")],
-                                 zones[, c("country", "ZAFRICA", "ZLA", "ZINDIC", "ZSINIC",
-                                           "ZNWEST", "ZISLAM", "ZORT", "ZOLDWEST", "ZREFWEST", 
-                                           "ZRETWEST", "ASIANBIN")])
-  )) %>% 
-  map(~ mutate(., country = droplevels(country)))
-
-
-
-
-
 # Checking for multicollinearity
 # modelmult <- lm(mlsem_dat[[1]]$imprel ~ 
-#                   mlsem_dat[[1]]$RCASIAN + mlsem_dat[[1]]$RCOTHER + 
+#                   mlsem_dat[[1]]$RCASIAN + mlsem_dat[[1]]$RCOTHER +  mlsem_dat[[1]]$RCNREL +
 #                   mlsem_dat[[1]]$COMMALL + mlsem_dat[[1]]$TAX + 
 #                   mlsem_dat[[1]]$RRI + mlsem_dat[[1]]$RLI + 
 #                   mlsem_dat[[1]]$HDI) %>%
 #   car::vif()
 # modelmult
+# No milticollinearity
 
 
 # Save data for MLSEM
-setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus")
 for (i in 1:length(mlsem_dat)) {
   prepareMplusData(mlsem_dat[[i]], filename = paste0("mlsem_dat", i, ".dat"))
 }
 
-setwd("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/untitled folder 3/RI_M1_RCSEP_NEW/dat1")
-prepareMplusData(mlsem_dat[[1]], filename = "mlsem_dat1.dat")
-
 # You can run all models with the following command:
-runmodels()
+runmodels("", 
+          recursive = T)
 
 # You can check the traceplots with the following command:
-traceplots_mplus("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/02_Results/M2/dat1/M2_1.gh5",
+traceplots_mplus("",
                  is.file = T)
-
-
-runModels("/Users/alisa/Desktop/Research/Religiosity all/WVS7/Belonging/BelongNI/01_Scripts/02_AnalysisScripts/Mplus/untitled folder 3",
-          recursive = T)
 
 # ===================================================================================================
 
@@ -1313,7 +1252,7 @@ df_to_viewer(mgcfa_model, rownames = F, digits = 3)
 
 # Table ... Denominational composition, by country (%)
 df_to_viewer(
-  rel_compos[, c("country", "year", "RCABR", "RCASIAN", "RCOTHER")], 
+  rel_compos[, c("country", "year", "RCABR", "RCASIAN", "RCOTHER", "RCNREL")], 
   rownames = F, 
   digits = 0)
 
@@ -1366,7 +1305,7 @@ df_to_viewer(tab_predict, rownames = F)
 
 # Table ... Mean (sd) for continuous country-level predictors
 cont_tab <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
-  select(., c("RCABR", "RCASIAN", "RCOTHER", "RRI", "RLI", "HDI")) %>%
+  select(., c("RCABR", "RCASIAN", "RCOTHER", "RCNREL", "RRI", "RLI", "HDI")) %>%
   sapply(., function(x)
     paste0(
       round(
@@ -1378,18 +1317,19 @@ cont_tab <- mlsem_dat[[1]][!duplicated(mlsem_dat[[1]]$country), ] %>%
 cont_tab <- as.data.frame(cont_tab)
 rownames(cont_tab) <- c("Followers of Abrahamic religions", 
                         "Followers of Asian religions", "Others", 
+                        "Non-affiliated",
                          "RRI", "RLI", "HDI")
 cont_tab <- cbind(rownames(cont_tab), cont_tab)
 
 colnames(cont_tab) <- c("Predictor", "Mean (SD)")
 
 kable(cont_tab, row.names = FALSE) %>%
-  group_rows("Religious composition", 1, 3) %>%
-  group_rows("Regulation of religion", 4, 5) %>%
+  group_rows("Religious composition", 1, 4) %>%
+  group_rows("Regulation of religion", 5, 6) %>%
   group_rows("HDI", 6, 6) %>%
   footnote(
     general = "Followers of Abrahamic religions = the sum percentage of Christians and Muslims;
-    Others = the sum percentage of not religious, individuals with unknown classification, 
+    Others = the sum percentage of individuals with unknown classification, 
     and the followers of all 'other' religions: Jews, Mandaeans, Zoroastrians, Bahais, Sikhs, 
     indigenous religionists (Ethnoreligionists), New Age religionists, and other religionists.
     The descriptive statistics were computed for the sample of 50 countries."
