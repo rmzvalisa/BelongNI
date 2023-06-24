@@ -934,6 +934,21 @@ rel_compos <- rel_compos %>%
 ## rel_compos$SUM <- rowSums(rel_compos[,c("RCABR", "RCASIAN", "RCOTHER", "RCNREL")], na.rm = T)
 ## df_to_viewer(rel_compos[, c("country", "SUM")], rownames = F)
 
+# ----------
+
+# Adjust the variables in Maldives and Hong Kong:
+# RCOTHER is negative
+## Hong Kong: OREPC = -0.30437088
+## Maldives: OREPC = -0.07376294
+## -> subtract proportionally from all variables 
+rel_compos <- rel_compos %>%
+  mutate(DIF = if_else(country %in% c("Hong Kong", "Maldives"), 
+                       RCOTHER/3, 0)) %>%
+  mutate_at(vars(RCABR, RCASIAN, RCNREL), 
+            ~ if_else(country %in% c("Hong Kong", "Maldives"), . + DIF, .)) %>%
+  mutate(RCOTHER = if_else(country %in% c("Hong Kong", "Maldives"), 0, RCOTHER))
+
+
 # Adjust the variables in South Korea and Netherlands:
 ## the total percentage of adherents of all religions is a bit > 100%
 ## -> subtract the extra % from all categories proportionally to the number of these categories
